@@ -22,31 +22,29 @@
 
       <div class="topbar__hint">
         <span class="kbd">WASD</span> / <span class="kbd">Pfeile</span> bewegen •
-        <span class="kbd">R</span> neu generieren
+        <span class="kbd">R</span> neu generieren •
+        <span class="kbd">1–0</span> Hotbar
       </div>
     </header>
 
     <main class="stage">
       <section class="stage__map">
-        <!-- MAP + DESKTOP HUD OVERLAY -->
         <div class="canvasWrap" id="canvasWrap">
           <canvas id="map" aria-label="Dungeon Map"></canvas>
 
-          <!-- Desktop: Panels schweben über der Map (position:absolute via CSS) -->
+          <!-- Desktop HUD Overlay Panels -->
           <div id="hud" class="hud" aria-label="HUD Panels">
             <!-- PARTY -->
             <section class="hudPanel" data-panel-id="party">
               <div class="hudPanel__titlebar" data-drag-handle>
                 <div class="hudPanel__title">Party</div>
                 <div class="hudPanel__actions">
-                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen">▾</button>
+                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen" aria-expanded="true">▾</button>
                 </div>
               </div>
               <div class="hudPanel__body">
                 <div class="muted">
                   Platzhalter: Portraits, HP, Stats.
-                  <br><br>
-                  Desktop: ziehen/resizen • Mobile: Fullscreen-Menü über Buttons.
                 </div>
               </div>
               <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
@@ -57,7 +55,7 @@
               <div class="hudPanel__titlebar" data-drag-handle>
                 <div class="hudPanel__title">Inventar</div>
                 <div class="hudPanel__actions">
-                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen">▾</button>
+                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen" aria-expanded="true">▾</button>
                 </div>
               </div>
               <div class="hudPanel__body">
@@ -73,11 +71,11 @@
               <div class="hudPanel__titlebar" data-drag-handle>
                 <div class="hudPanel__title logTitle">Log</div>
                 <div class="hudPanel__actions">
-                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen">▾</button>
+                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen" aria-expanded="true">▾</button>
                 </div>
               </div>
               <div class="hudPanel__body logBody" id="log">
-                <div class="logLine">Willkommen! (Schritt B1.1: Mobile Tabs + Desktop Defaults)</div>
+                <div class="logLine">Willkommen! (B2 Hotbar: Slots + Tooltips)</div>
               </div>
               <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
             </section>
@@ -87,20 +85,33 @@
               <div class="hudPanel__titlebar" data-drag-handle>
                 <div class="hudPanel__title">Hotbar</div>
                 <div class="hudPanel__actions">
-                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen">▾</button>
+                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen" aria-expanded="true">▾</button>
                 </div>
               </div>
-              <div class="hudPanel__body">
-                <div class="muted">
-                  Platzhalter: Actions + Items (Hotkeys 1–0)
+
+              <!-- NEU: echte Hotbar Slots -->
+              <div class="hudPanel__body hotbarBody">
+                <div class="hotbarWrap" aria-label="Hotbar Slots">
+                  <div id="hotbarSlots" class="hotbarSlots" role="toolbar" aria-label="Actions (1 bis 0)"></div>
+
+                  <!-- Tooltip (wird per JS befüllt & positioniert) -->
+                  <div id="hotbarTooltip" class="hotbarTooltip" role="tooltip" aria-hidden="true">
+                    <div class="hotbarTooltip__title" id="hotbarTooltipTitle">—</div>
+                    <div class="hotbarTooltip__desc" id="hotbarTooltipDesc">—</div>
+                    <div class="hotbarTooltip__meta" id="hotbarTooltipMeta">—</div>
+                  </div>
+                </div>
+
+                <div class="hotbarHint muted">
+                  Tipp: <span class="kbd">1–0</span> auslösen • Hover für Tooltip • Tap am Handy zeigt Tooltip
                 </div>
               </div>
+
               <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
             </section>
           </div>
         </div>
 
-        <!-- STATUS -->
         <div class="statusbar">
           <div id="statusText" class="statusbar__text">Lade…</div>
         </div>
@@ -113,7 +124,6 @@
           <button class="mobileTabBtn" type="button" data-open-panel="hotbar">Hotbar</button>
         </nav>
 
-        <!-- MOBILE: Backdrop + Close (wird via JS ein/ausgeblendet) -->
         <div class="mobileOverlay" id="mobileOverlay" aria-hidden="true">
           <button class="mobileClose" id="mobileClose" type="button" aria-label="Menü schließen">✕</button>
         </div>

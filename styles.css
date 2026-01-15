@@ -1,8 +1,15 @@
 /* ============================================================================
+<<<<<<< HEAD
+   Shadowridge – UI (B2 Hotbar)
+   - BG3-ish Panels
+   - Docking Guides (vom vorherigen Schritt)
+   - Hotbar: echte Slots + CSS Icons + Tooltips
+=======
    Shadowridge – UI Schritt B2
    - Desktop: BG3-like HUD Overlay Panels (drag + resize) + Docking/Snapping
    - Mobile: Safe-Area + Buttons unter Map + Fullscreen Panel Menüs
    - (NEU) Docking Guides (sichtbare Linien beim Einrasten)
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
    ========================================================================== */
 
 :root{
@@ -25,7 +32,6 @@
   --shadow:rgba(0,0,0,.35);
   --radius:16px;
 
-  /* Safe-Area Insets */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -45,7 +51,6 @@ body{
   overflow:hidden;
 }
 
-/* Safe-Area padding, damit nix unter Notch/Homebar sitzt */
 .app{
   height:100%;
   display:grid;
@@ -66,12 +71,26 @@ body{
   padding:12px 14px;
   border:1px solid var(--line);
   border-radius:var(--radius);
+<<<<<<< HEAD
+  background: linear-gradient(180deg, rgba(30,24,18,.90), rgba(14,12,10,.88));
+=======
   background:
     linear-gradient(180deg, rgba(30,24,18,.90), rgba(14,12,10,.88));
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
   box-shadow: 0 12px 30px var(--shadow);
   position:relative;
   overflow:hidden;
 }
+<<<<<<< HEAD
+.topbar::before{
+  content:"";
+  position:absolute;
+  inset:-40px;
+  background: repeating-linear-gradient(35deg, rgba(255,255,255,.03) 0 1px, transparent 1px 10px);
+  opacity:.20;
+  pointer-events:none;
+}
+=======
 .topbar::before{
   content:"";
   position:absolute;
@@ -81,6 +100,7 @@ body{
   opacity:.20;
   pointer-events:none;
 }
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
 
 .title__main{
   font-family:"Cinzel", serif;
@@ -114,11 +134,10 @@ body{
 
 /* --- Stage / Map --------------------------------------------------------- */
 .stage{ min-height:0; }
-
 .stage__map{
   min-height:0;
   display:grid;
-  grid-template-rows: 1fr auto auto; /* Map, Status, MobileTabs */
+  grid-template-rows: 1fr auto auto;
   gap:10px;
 }
 
@@ -140,7 +159,6 @@ body{
   display:block;
 }
 
-/* Statuszeile */
 .statusbar{
   border:1px solid var(--line);
   border-radius:var(--radius);
@@ -154,7 +172,7 @@ body{
 
 /* --- HUD Overlay Container ---------------------------------------------- */
 .hud{
-  pointer-events:none; /* Panels aktivieren pointer-events selbst */
+  pointer-events:none;
 }
 
 /* --- Panels -------------------------------------------------------------- */
@@ -164,6 +182,15 @@ body{
   overflow:hidden;
   backdrop-filter: blur(3px);
 
+<<<<<<< HEAD
+  background: linear-gradient(180deg, rgba(32,26,20,.92), rgba(12,10,8,.80));
+  border:1px solid rgba(210,162,74,.30);
+  box-shadow:
+    0 18px 45px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -1px 0 rgba(0,0,0,.35);
+
+=======
   /* “BG3-ish” Rahmen-Layer */
   background:
     linear-gradient(180deg, rgba(32,26,20,.92), rgba(12,10,8,.80));
@@ -173,9 +200,23 @@ body{
     inset 0 1px 0 rgba(255,255,255,.06),
     inset 0 -1px 0 rgba(0,0,0,.35);
 
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
   width: var(--w, 320px);
   height: var(--h, 240px);
   position:relative;
+}
+.hudPanel::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.55;
+  background:
+    radial-gradient(12px 12px at 14px 14px, rgba(210,162,74,.55), transparent 70%),
+    radial-gradient(12px 12px at calc(100% - 14px) 14px, rgba(210,162,74,.55), transparent 70%),
+    radial-gradient(12px 12px at 14px calc(100% - 14px), rgba(210,162,74,.35), transparent 70%),
+    radial-gradient(12px 12px at calc(100% - 14px) calc(100% - 14px), rgba(210,162,74,.35), transparent 70%),
+    repeating-linear-gradient(35deg, rgba(255,255,255,.03) 0 1px, transparent 1px 10px);
 }
 
 /* Ornamente in den Ecken (rein CSS, keine Bilder) */
@@ -203,8 +244,12 @@ body{
   border-bottom:1px solid rgba(210,162,74,.18);
   cursor: grab;
   user-select:none;
+<<<<<<< HEAD
+  background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,0));
+=======
   background:
     linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,0));
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
 }
 
 .hudPanel__title{
@@ -227,11 +272,18 @@ body{
 
 /* BG3-ish icon button */
 .hudBtn{
+<<<<<<< HEAD
+  width:30px;
+  height:26px;
+  display:grid;
+  place-items:center;
+=======
   width:30px;
   height:26px;
   display:grid;
   place-items:center;
 
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
   border:1px solid rgba(255,255,255,.14);
   background: rgba(0,0,0,.25);
   color: var(--ink);
@@ -259,7 +311,6 @@ body{
   border-bottom:1px dashed rgba(255,255,255,.08);
 }
 
-/* Resize Handle */
 .hudPanel__resize{
   position:absolute;
   right:6px;
@@ -274,7 +325,6 @@ body{
 }
 .hudPanel__resize:hover{ opacity:1; }
 
-/* Active highlight */
 .hudPanel.is-active{
   border-color: rgba(210,162,74,.55);
   box-shadow:
@@ -283,19 +333,222 @@ body{
     inset 0 -1px 0 rgba(0,0,0,.45);
 }
 
+<<<<<<< HEAD
+/* Desktop: Collapse = Mini-Leiste */
+=======
 /* Desktop: Collapse = Mini-Leiste (Titlebar bleibt) */
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
 @media (min-width: 981px){
   .hudPanel.is-collapsed{
     height: 46px !important;
     min-height: 46px;
   }
+<<<<<<< HEAD
+  .hudPanel.is-collapsed .hudPanel__body{ display:none; }
+  .hudPanel.is-collapsed .hudPanel__resize{ display:none; }
+  .hudPanel.is-collapsed .hudPanel__titlebar{ border-bottom:none; }
+}
+
+/* --- Docking Guides ------------------------------------------------------ */
+.dockGuides{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index: 8000;
+}
+.dockGuideLine{
+  position:absolute;
+  opacity:0;
+  transform: translateZ(0);
+  transition: opacity .06s linear;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.35));
+}
+.dockGuideLine.is-on{ opacity:1; }
+.dockGuideLine--v{
+  top:0; bottom:0;
+  width:2px;
+  background: linear-gradient(180deg, transparent, rgba(210,162,74,.85), transparent);
+}
+.dockGuideLine--h{
+  left:0; right:0;
+  height:2px;
+  background: linear-gradient(90deg, transparent, rgba(210,162,74,.85), transparent);
+}
+
+/* --- HOTBAR (NEU) -------------------------------------------------------- */
+.hotbarBody{
+  /* wichtig: Tooltip darf “überhängen”, nicht im Panel-Body abgeschnitten */
+  position:relative;
+  overflow:visible;
+}
+
+.hotbarWrap{
+  position:relative;
+  padding:6px 4px 8px 4px;
+  border:1px solid rgba(210,162,74,.18);
+  border-radius:14px;
+  background: rgba(0,0,0,.18);
+=======
   .hudPanel.is-collapsed .hudPanel__body{ display:none; }
   .hudPanel.is-collapsed .hudPanel__resize{ display:none; }
   .hudPanel.is-collapsed .hudPanel__titlebar{
     border-bottom:none;
   }
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
 }
 
+<<<<<<< HEAD
+.hotbarSlots{
+  display:grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap:8px;
+  align-items:stretch;
+}
+
+/* Slot */
+.hotbarSlot{
+  position:relative;
+  height:52px;
+  border-radius:14px;
+  border:1px solid rgba(210,162,74,.28);
+  background:
+    radial-gradient(55px 40px at 35% 30%, rgba(255,255,255,.06), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.45));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -1px 0 rgba(0,0,0,.45);
+  cursor:pointer;
+  user-select:none;
+  outline:none;
+}
+
+.hotbarSlot:hover{
+  border-color: rgba(210,162,74,.48);
+}
+
+.hotbarSlot.is-selected{
+  border-color: rgba(210,162,74,.70);
+  box-shadow:
+    0 8px 22px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.55);
+}
+
+/* Key label (1..0) */
+.hotbarKey{
+  position:absolute;
+  left:8px;
+  top:6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size:10px;
+  color: rgba(242,234,215,.80);
+  background: rgba(0,0,0,.28);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;
+  padding:1px 5px;
+}
+
+/* “Icon” Fläche – CSS-only (Pseudo Elements) */
+.hotbarIcon{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+}
+.hotbarIcon::before{
+  content:"";
+  width:22px;
+  height:22px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(210,162,74,.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* Icon Varianten (nur CSS – simple, lesbare Symbolik) */
+.hotbarSlot[data-icon="sword"] .hotbarIcon::before{
+  background:
+    linear-gradient(45deg, rgba(255,255,255,.10), rgba(0,0,0,.35)),
+    linear-gradient(180deg, rgba(210,162,74,.35), rgba(210,162,74,.08));
+  border-color: rgba(210,162,74,.35);
+}
+.hotbarSlot[data-icon="shield"] .hotbarIcon::before{
+  background:
+    radial-gradient(14px 14px at 50% 35%, rgba(255,255,255,.10), transparent 65%),
+    linear-gradient(180deg, rgba(140,170,190,.22), rgba(0,0,0,.45));
+  border-color: rgba(140,170,190,.35);
+}
+.hotbarSlot[data-icon="potion"] .hotbarIcon::before{
+  background:
+    radial-gradient(12px 12px at 50% 35%, rgba(255,255,255,.14), transparent 65%),
+    linear-gradient(180deg, rgba(200,75,75,.26), rgba(0,0,0,.45));
+  border-color: rgba(200,75,75,.35);
+}
+.hotbarSlot[data-icon="spell"] .hotbarIcon::before{
+  background:
+    radial-gradient(18px 18px at 50% 45%, rgba(120,160,255,.18), transparent 70%),
+    linear-gradient(180deg, rgba(90,120,255,.16), rgba(0,0,0,.45));
+  border-color: rgba(90,120,255,.35);
+}
+.hotbarSlot[data-icon="boot"] .hotbarIcon::before{
+  background:
+    radial-gradient(18px 18px at 50% 45%, rgba(210,162,74,.14), transparent 70%),
+    linear-gradient(180deg, rgba(210,162,74,.10), rgba(0,0,0,.45));
+  border-color: rgba(210,162,74,.28);
+}
+.hotbarSlot[data-icon="lantern"] .hotbarIcon::before{
+  background:
+    radial-gradient(12px 12px at 50% 40%, rgba(255,210,120,.22), transparent 70%),
+    linear-gradient(180deg, rgba(255,210,120,.12), rgba(0,0,0,.45));
+  border-color: rgba(255,210,120,.32);
+}
+
+/* Tooltip */
+.hotbarTooltip{
+  position:absolute;
+  min-width: 220px;
+  max-width: 320px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(210,162,74,.35);
+  background:
+    linear-gradient(180deg, rgba(20,16,12,.95), rgba(10,8,6,.92));
+  box-shadow: 0 18px 45px rgba(0,0,0,.55);
+  pointer-events:none;
+  opacity:0;
+  transform: translate3d(0, 6px, 0);
+  transition: opacity .08s linear, transform .08s ease;
+  z-index: 50;
+}
+.hotbarTooltip.is-on{
+  opacity:1;
+  transform: translate3d(0, 0, 0);
+}
+
+.hotbarTooltip__title{
+  font-family:"Cinzel", serif;
+  font-weight:700;
+  color: var(--ink);
+  margin-bottom:4px;
+}
+.hotbarTooltip__desc{
+  color: var(--muted);
+  font-size:12px;
+  margin-bottom:6px;
+}
+.hotbarTooltip__meta{
+  font-size:11px;
+  color: rgba(242,234,215,.72);
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.hotbarHint{
+  margin-top:8px;
+  font-size:12px;
+}
+
+=======
 /* --- Docking Guides (nur Desktop sinnvoll) --------------------------------
    Panels “snappen” und wir zeigen dabei eine goldene Linie.
 ----------------------------------------------------------------------------- */
@@ -325,6 +578,7 @@ body{
   background: linear-gradient(90deg, transparent, rgba(210,162,74,.85), transparent);
 }
 
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
 /* --- Desktop Overlay Mode ---------------------------------------------- */
 @media (min-width: 981px){
   .canvasWrap{
@@ -334,10 +588,7 @@ body{
 
   .hud{
     position:absolute;
-    left:0;
-    top:0;
-    right:0;
-    bottom:0;
+    left:0; top:0; right:0; bottom:0;
     pointer-events:none;
   }
 
@@ -355,9 +606,13 @@ body{
   body{ overflow:auto; }
   .app{ overflow:auto; height:auto; }
 
+<<<<<<< HEAD
+  .canvasWrap{ height: 58vh; }
+=======
   .canvasWrap{
     height: 58vh;
   }
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
 
   .hud{
     position:absolute;
@@ -436,8 +691,16 @@ body{
   .hudPanel.is-mobile-open .hudPanel__resize{ display:none; }
   .hudPanel.is-mobile-open .hudPanel__titlebar{ cursor: default; }
 
+<<<<<<< HEAD
+  .dockGuides{ display:none; }
+
+  /* Hotbar Slots am Mobile etwas größer */
+  .hotbarSlots{ gap:10px; }
+  .hotbarSlot{ height:58px; }
+=======
   /* Dock Guides im Mobile nicht nötig */
   .dockGuides{ display:none; }
+>>>>>>> 7200f7e8c464d2f8da608f6b16a65ecda591391c
 }
 
 .muted{ color: var(--muted); }

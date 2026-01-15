@@ -7,7 +7,8 @@
  * - Controls
  * - MapCanvas Rendering
  * - Log
- * - HUD Panels (Desktop: Drag/Resize; Mobile: Fullscreen Menüs via Buttons)
+ * - HUD Panels (Desktop: Drag/Resize + Docking; Mobile: Fullscreen Menüs)
+ * - (NEU) Hotbar Slots + Tooltips
  */
 
 import { state, setState } from "./state.js";
@@ -16,6 +17,7 @@ import { MapCanvas } from "./ui/mapCanvas.js";
 import { startLoop } from "./game/loop.js";
 import { setupControls } from "./input/controls.js";
 import { setupPanels } from "./ui/panels.js";
+import { setupHotbar } from "./ui/hotbar.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -55,13 +57,20 @@ const mobileTabsEl = $("mobileTabs");
 const mobileOverlayEl = $("mobileOverlay");
 const mobileCloseEl = $("mobileClose");
 
+// Hotbar elements
+const hotbarSlotsEl = $("hotbarSlots");
+const hotbarTooltipEl = $("hotbarTooltip");
+const hotbarTooltipTitleEl = $("hotbarTooltipTitle");
+const hotbarTooltipDescEl = $("hotbarTooltipDesc");
+const hotbarTooltipMetaEl = $("hotbarTooltipMeta");
+
 // Map
 const map = new MapCanvas(canvasEl);
 map.resizeToParent();
 
 // Init Dungeon
 regenerateDungeon();
-addLog("B1.1: Mobile Buttons öffnen Panels als Fullscreen-Menüs. Desktop hat Default HUD Layout.");
+addLog("B2: Hotbar hat jetzt echte Slots + Tooltips. Drück 1–0.");
 
 // Controls
 setupControls({
@@ -84,7 +93,7 @@ setupControls({
   onLog: (t) => addLog(t),
 });
 
-// HUD Panels
+// HUD Panels (Docking/Collapse etc. kommt aus deiner panels.js)
 if (hudEl && canvasEl?.parentElement) {
   setupPanels({
     hudEl,
@@ -94,6 +103,20 @@ if (hudEl && canvasEl?.parentElement) {
     mobileCloseEl,
   });
 }
+
+// Hotbar setup
+setupHotbar({
+  slotsEl: hotbarSlotsEl,
+  tooltipEl: hotbarTooltipEl,
+  tooltipTitleEl: hotbarTooltipTitleEl,
+  tooltipDescEl: hotbarTooltipDescEl,
+  tooltipMetaEl: hotbarTooltipMetaEl,
+  onActivate: (slot) => {
+    // Später verbinden wir das mit Skills/Items/State.
+    addLog(`Hotbar: ${slot.key} → ${slot.name}`);
+    setState("ui.statusText", `Aktion: ${slot.name}`);
+  },
+});
 
 // Render loop
 startLoop({
