@@ -1,27 +1,19 @@
 /**
  * src/ui/panels.js
  * -----------------------------------------------------------------------------
- * Desktop (>=981px):
- * - Drag (Titelbar)
- * - Resize (Ecke)
- * - Z-Order
- * - Persistenz
- * - Collapse = Mini-Panel (Titlebar bleibt sichtbar)
- * - (NEU) Docking/Snapping:
- *    - an Bounds (Kartenrand / Map-Container)
- *    - an andere Panels (Kanten ausrichten, “aneinander” andocken)
- *    - sichtbare Guides (goldene Linien)
- *    - ALT gedrückt: Snapping temporär aus
+ * Desktop:
+ * - Drag/Resize + Docking + Collapse
  *
- * Mobile (<=980px):
- * - Buttons unter der Karte öffnen Panels Fullscreen (.is-mobile-open)
+ * Mobile:
+ * - Buttons öffnen Panels Fullscreen
+ * - (FIX) Interaktion im Panel darf nicht das Backdrop triggern
  */
 
 const STORAGE_KEY = "sr.panels.v2";
 
-/** Snapping-Parameter (leicht anpassbar) */
-const SNAP_DIST = 12;   // wie nah muss man sein, um einzurasten?
-const DOCK_GAP  = 12;   // Abstand, wenn Panels "aneinander" docken
+/** Snapping-Parameter */
+const SNAP_DIST = 12;
+const DOCK_GAP  = 12;
 
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
@@ -53,9 +45,6 @@ function saveLayout(layout) {
   }
 }
 
-/**
- * Default-Layout basierend auf boundsEl (Map-Fläche).
- */
 function applyDefaultLayout(panels, boundsEl, layoutRef, zStart = 10) {
   const b = boundsEl.getBoundingClientRect();
   const margin = 16;
@@ -95,10 +84,6 @@ function applyDefaultLayout(panels, boundsEl, layoutRef, zStart = 10) {
   layoutRef.__zCounter = zStart + 10;
 }
 
-/**
- * Docking Guides (goldene Linien).
- * Wir erzeugen sie dynamisch, damit du nicht am HTML schrauben musst.
- */
 function ensureDockGuides(boundsEl) {
   let guides = boundsEl.querySelector(".dockGuides");
   if (!guides) {
@@ -118,7 +103,7 @@ function ensureDockGuides(boundsEl) {
 
   const vLine = guides.querySelector(".dockGuideLine--v");
   const hLine = guides.querySelector(".dockGuideLine--h");
-  return { guides, vLine, hLine };
+  return { vLine, hLine };
 }
 
 function hideGuides(vLine, hLine) {
@@ -126,9 +111,6 @@ function hideGuides(vLine, hLine) {
   hLine?.classList.remove("is-on");
 }
 
-/**
- * Hilfsfunktion: Panel-Rechtecke in bounds-Koordinaten holen.
- */
 function getPanelRectsInBounds(panels, boundsEl, excludePanel) {
   const b = boundsEl.getBoundingClientRect();
 
@@ -149,43 +131,24 @@ function getPanelRectsInBounds(panels, boundsEl, excludePanel) {
     });
 }
 
-/**
- * Snap-Rechnung für Drag:
- * - x/y sind die gewünschte Position (oben links) in px innerhalb bounds
- * - w/h Panel Größe
- * - candidates: bounds edges + other panels edges + "dock adjacency"
- *
- * Rückgabe: { x, y, guideX, guideY }
- * - guideX: x-Koordinate für vertikale Dock-Linie oder null
- * - guideY: y-Koordinate für horizontale Dock-Linie oder null
- */
 function snapDrag({ x, y, w, h, boundsW, boundsH, others, allowSnap }) {
   if (!allowSnap) return { x, y, guideX: null, guideY: null };
 
-  // Kandidaten für X/Y
   const xCandidates = [];
   const yCandidates = [];
 
-  // 1) Bounds edges
-  xCandidates.push({ val: 0, guide: 0 });                 // left
-  xCandidates.push({ val: boundsW - w, guide: boundsW }); // right edge as guide at boundsW
-  yCandidates.push({ val: 0, guide: 0 });                 // top
-  yCandidates.push({ val: boundsH - h, guide: boundsH }); // bottom
+  xCandidates.push({ val: 0, guide: 0 });
+  xCandidates.push({ val: boundsW - w, guide: boundsW });
+  yCandidates.push({ val: 0, guide: 0 });
+  yCandidates.push({ val: boundsH - h, guide: boundsH });
 
-  // 2) Align edges with other panels + adjacency docking
   for (const o of others) {
-    // align left edge to other left
     xCandidates.push({ val: o.left, guide: o.left });
-    // align left edge to other right - w (so our right aligns to their right)
     xCandidates.push({ val: o.right - w, guide: o.right });
-    // align right edge to other left (our right -> their left)
     xCandidates.push({ val: o.left - w, guide: o.left });
-    // adjacency docking: place right next to other (with gap)
     xCandidates.push({ val: o.right + DOCK_GAP, guide: o.right });
-    // adjacency docking: place left next to other (with gap)
     xCandidates.push({ val: o.left - w - DOCK_GAP, guide: o.left });
 
-    // Y equivalents
     yCandidates.push({ val: o.top, guide: o.top });
     yCandidates.push({ val: o.bottom - h, guide: o.bottom });
     yCandidates.push({ val: o.top - h, guide: o.top });
@@ -193,21 +156,18 @@ function snapDrag({ x, y, w, h, boundsW, boundsH, others, allowSnap }) {
     yCandidates.push({ val: o.top - h - DOCK_GAP, guide: o.top });
   }
 
-  // best snap for x
   let bestX = { dist: Infinity, val: x, guide: null };
   for (const c of xCandidates) {
     const d = Math.abs(x - c.val);
     if (d < bestX.dist) bestX = { dist: d, val: c.val, guide: c.guide };
   }
 
-  // best snap for y
   let bestY = { dist: Infinity, val: y, guide: null };
   for (const c of yCandidates) {
     const d = Math.abs(y - c.val);
     if (d < bestY.dist) bestY = { dist: d, val: c.val, guide: c.guide };
   }
 
-  // apply if within threshold
   const outX = (bestX.dist <= SNAP_DIST) ? bestX.val : x;
   const outY = (bestY.dist <= SNAP_DIST) ? bestY.val : y;
 
@@ -219,28 +179,21 @@ function snapDrag({ x, y, w, h, boundsW, boundsH, others, allowSnap }) {
   };
 }
 
-/**
- * Snap-Rechnung für Resize:
- * Wir snappen den RIGHT und BOTTOM Rand (w/h) an bounds oder andere Panels.
- */
 function snapResize({ left, top, w, h, boundsW, boundsH, others, allowSnap }) {
   if (!allowSnap) return { w, h, guideX: null, guideY: null };
 
   const right = left + w;
   const bottom = top + h;
 
-  // Kandidaten: bounds right/bottom + other panel edges (left/right/top/bottom)
   const rightCandidates = [{ edge: boundsW, guide: boundsW }];
   const bottomCandidates = [{ edge: boundsH, guide: boundsH }];
 
   for (const o of others) {
-    // align right to other left/right (+ adjacency gap)
     rightCandidates.push({ edge: o.left, guide: o.left });
     rightCandidates.push({ edge: o.right, guide: o.right });
     rightCandidates.push({ edge: o.left - DOCK_GAP, guide: o.left });
     rightCandidates.push({ edge: o.right + DOCK_GAP, guide: o.right });
 
-    // align bottom to other top/bottom (+ adjacency gap)
     bottomCandidates.push({ edge: o.top, guide: o.top });
     bottomCandidates.push({ edge: o.bottom, guide: o.bottom });
     bottomCandidates.push({ edge: o.top - DOCK_GAP, guide: o.top });
@@ -273,14 +226,11 @@ function snapResize({ left, top, w, h, boundsW, boundsH, others, allowSnap }) {
 
 export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mobileCloseEl }) {
   const panels = Array.from(hudEl.querySelectorAll(".hudPanel"));
-
-  // Dock guides (Desktop)
   const { vLine, hLine } = ensureDockGuides(boundsEl);
 
   let layout = loadLayout() || {};
   let zCounter = layout.__zCounter || 10;
 
-  // Desktop Defaults: nur wenn noch nichts gespeichert ist
   const hasAnyPanelSaved = panels.some(p => layout[p.dataset.panelId]);
   if (!hasAnyPanelSaved && isDesktopOverlay()) {
     applyDefaultLayout(panels, boundsEl, layout, zCounter);
@@ -288,7 +238,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     zCounter = layout.__zCounter || (zCounter + 10);
   }
 
-  // Layout anwenden + Button-Icons initial setzen
   for (const panel of panels) {
     const id = panel.dataset.panelId;
     const saved = layout[id];
@@ -312,7 +261,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     }
   }
 
-  // Speichern
   function commitPanel(panel) {
     const id = panel.dataset.panelId;
     if (!id) return;
@@ -334,7 +282,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     saveLayout(layout);
   }
 
-  // Z-Order / Active
   function activate(panel) {
     for (const p of panels) p.classList.remove("is-active");
     panel.classList.add("is-active");
@@ -342,7 +289,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     commitPanel(panel);
   }
 
-  // Collapse toggle
   function toggleCollapse(panel) {
     panel.classList.toggle("is-collapsed");
 
@@ -356,7 +302,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     commitPanel(panel);
   }
 
-  // Drag
   function setupDrag(panel) {
     const handle = panel.querySelector("[data-drag-handle]");
     if (!handle) return;
@@ -381,7 +326,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
       if (!isDesktopOverlay()) return;
       if (e.button !== 0) return;
 
-      // Wenn Pointerdown von Button kommt, NICHT draggen (sonst Click verschluckt)
       const target = e.target;
       if (target && target.closest && target.closest("button")) return;
 
@@ -411,14 +355,12 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
 
-      // Rohposition
       let nx = clamp(startLeft + dx, 0, b.width - cur.w);
       let ny = clamp(startTop + dy, 0, b.height - cur.h);
 
-      // Andere Panels als Snap-Kandidaten
       const others = getPanelRectsInBounds(panels, boundsEl, panel);
+      const allowSnap = !e.altKey;
 
-      const allowSnap = !e.altKey; // ALT gedrückt = frei bewegen
       const snapped = snapDrag({
         x: nx, y: ny, w: cur.w, h: cur.h,
         boundsW: b.width, boundsH: b.height,
@@ -432,20 +374,15 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
       panel.style.setProperty("--x", `${Math.round(nx)}px`);
       panel.style.setProperty("--y", `${Math.round(ny)}px`);
 
-      // Guides anzeigen
       if (snapped.guideX != null) {
         vLine.style.left = `${Math.round(snapped.guideX)}px`;
         vLine.classList.add("is-on");
-      } else {
-        vLine.classList.remove("is-on");
-      }
+      } else vLine.classList.remove("is-on");
 
       if (snapped.guideY != null) {
         hLine.style.top = `${Math.round(snapped.guideY)}px`;
         hLine.classList.add("is-on");
-      } else {
-        hLine.classList.remove("is-on");
-      }
+      } else hLine.classList.remove("is-on");
     });
 
     function endDrag(e) {
@@ -461,7 +398,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     handle.addEventListener("pointercancel", endDrag);
   }
 
-  // Resize
   function setupResize(panel) {
     const handle = panel.querySelector("[data-resize-handle]");
     if (!handle) return;
@@ -514,21 +450,16 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
       const minW = 240;
       const minH = 100;
 
-      // roh
       let newW = clamp(startW + dx, minW, b.width - panelLeft);
       let newH = clamp(startH + dy, minH, b.height - panelTop);
 
-      // andere panels als candidates
       const others = getPanelRectsInBounds(panels, boundsEl, panel);
-
       const allowSnap = !e.altKey;
+
       const snapped = snapResize({
-        left: panelLeft,
-        top: panelTop,
-        w: newW,
-        h: newH,
-        boundsW: b.width,
-        boundsH: b.height,
+        left: panelLeft, top: panelTop,
+        w: newW, h: newH,
+        boundsW: b.width, boundsH: b.height,
         others,
         allowSnap,
       });
@@ -539,20 +470,15 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
       panel.style.setProperty("--w", `${Math.round(newW)}px`);
       panel.style.setProperty("--h", `${Math.round(newH)}px`);
 
-      // Guides anzeigen (wir zeigen die Kante, an die wir snappen: right/bottom)
       if (snapped.guideX != null) {
         vLine.style.left = `${Math.round(snapped.guideX)}px`;
         vLine.classList.add("is-on");
-      } else {
-        vLine.classList.remove("is-on");
-      }
+      } else vLine.classList.remove("is-on");
 
       if (snapped.guideY != null) {
         hLine.style.top = `${Math.round(snapped.guideY)}px`;
         hLine.classList.add("is-on");
-      } else {
-        hLine.classList.remove("is-on");
-      }
+      } else hLine.classList.remove("is-on");
     });
 
     function endResize(e) {
@@ -567,12 +493,10 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     handle.addEventListener("pointercancel", endResize);
   }
 
-  // Desktop: innerhalb bounds halten (z.B. nach Browser-Resize)
   function normalizeIntoBounds() {
     if (!isDesktopOverlay()) return;
 
     const b = boundsEl.getBoundingClientRect();
-
     for (const panel of panels) {
       if (panel.classList.contains("is-mobile-open")) continue;
 
@@ -586,7 +510,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     }
   }
 
-  // Mobile Fullscreen
+  // -------- Mobile Fullscreen ----------
   function closeMobilePanel() {
     if (!isMobile()) return;
 
@@ -607,6 +531,10 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     for (const p of panels) p.classList.remove("is-mobile-open");
     target.classList.add("is-mobile-open");
 
+    // FIX: Klicks im geöffneten Panel dürfen nie das Backdrop schließen
+    // (Sicherheitsnetz, falls ein Browser hit-testing komisch macht)
+    target.addEventListener("pointerdown", (e) => e.stopPropagation(), { once: false });
+
     if (mobileOverlayEl) {
       mobileOverlayEl.classList.add("is-open");
       mobileOverlayEl.setAttribute("aria-hidden", "false");
@@ -615,7 +543,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
 
   // Wire events
   for (const panel of panels) {
-    // Activate on pointerdown (aber nicht bei Button-Klick)
     panel.addEventListener("pointerdown", (e) => {
       if (e.target && e.target.closest && e.target.closest("button")) return;
       if (!isDesktopOverlay()) return;
@@ -624,7 +551,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
 
     const collapseBtn = panel.querySelector('[data-action="collapse"]');
     if (collapseBtn) {
-      // pointerdown stoppen, damit Drag nicht startet
       collapseBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
       collapseBtn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -639,7 +565,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
   window.addEventListener("resize", normalizeIntoBounds);
   normalizeIntoBounds();
 
-  // Mobile buttons
   if (mobileTabsEl) {
     mobileTabsEl.addEventListener("click", (e) => {
       const btn = e.target?.closest?.("[data-open-panel]");
@@ -651,13 +576,20 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
   if (mobileCloseEl) {
     mobileCloseEl.addEventListener("click", () => closeMobilePanel());
   }
+
   if (mobileOverlayEl) {
+    // Backdrop schließen – aber NUR wenn man wirklich auf die dunkle Fläche tippt
     mobileOverlayEl.addEventListener("click", (e) => {
       if (e.target === mobileOverlayEl) closeMobilePanel();
     });
+
+    // Noch robuster: pointerdown verhindert “Tap-through” Edge Cases
+    mobileOverlayEl.addEventListener("pointerdown", (e) => {
+      // wenn der Tap auf dem Backdrop ist, darf er nicht weiter nach unten
+      if (e.target === mobileOverlayEl) e.preventDefault();
+    }, { passive: false });
   }
 
-  // Mode switch
   const mqDesktop = window.matchMedia("(min-width: 981px)");
   const onModeChange = () => {
     closeMobilePanel();
