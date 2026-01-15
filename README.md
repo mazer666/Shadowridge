@@ -1,6 +1,6 @@
 # Shadowridge – Endless Descent
 
-Ein browserbasiertes Solo-Roguelike: Inspiriert von **Four Against Darkness** trifft **Dungeon 100**-Vielfalt mit einem **Baldur's Gate 3**-inspirierten Interface.
+Ein browserbasiertes Solo-Dungeon-Crawler: Inspiriert von **Four Against Darkness** trifft **Dungeon 100**-Vielfalt mit einem **Baldur's Gate 3**-inspirierten Interface.
 
 **Endloser Dungeon-Crawl** – eine Party aus vier Helden kämpft sich durch prozedural generierte Etagen, besiegt Mini-Bosse und Final-Bosse, sammelt Gold, Items und überlebt so lange wie möglich.
 
