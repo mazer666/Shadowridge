@@ -73,14 +73,13 @@ https://mazer666.github.io/Shadowridge/
    cd Shadowridge
 
 2. Einfach im Browser öffnen (kein Build nötig)
-   # Öffne index.html mit Live Server (VS Code Extension) oder direkt im Browser
+   **Öffne index.html** mit Live Server (VS Code Extension) oder direkt im Browser
    open index.html
 
-   Oder nutze einen lokalen Server:
-   # Mit Python (sehr einfach)
+   Oder **nutze** einen **lokalen Server**: Mit Python (sehr einfach)
    python -m http.server 8000
 
-   Dann http://localhost:8000 im Browser
+   Dann **http://localhost:8000** im Browser
 
 ## Assets & Design
 
