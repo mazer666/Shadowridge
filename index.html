@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
   <title>Shadowridge – Endless Descent</title>
 
-  <!-- BG3-Feeling: Cinzel (Titel), MedievalSharp (UI), Uncial Antiqua (Akzent) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=MedievalSharp&family=Uncial+Antiqua&display=swap" rel="stylesheet">
@@ -14,10 +13,6 @@
 </head>
 
 <body>
-  <!--
-    WICHTIG: Safe-Area für Mobile (Notch/Homebar)
-    Wir machen das über CSS (env(safe-area-inset-*)).
-  -->
   <div class="app">
     <header class="topbar">
       <div class="title">
@@ -31,24 +26,16 @@
       </div>
     </header>
 
-    <!--
-      STAGE = die “Bühne”
-      - Desktop: Canvas nimmt den Platz ein, HUD-Panels liegen darüber (Overlay)
-      - Mobile: HUD wird normal unterhalb gestapelt (kein Overlay)
-    -->
     <main class="stage">
       <section class="stage__map">
-        <div class="canvasWrap">
+        <!-- MAP + DESKTOP HUD OVERLAY -->
+        <div class="canvasWrap" id="canvasWrap">
           <canvas id="map" aria-label="Dungeon Map"></canvas>
 
-          <!--
-            HUD Overlay Container:
-            Desktop: position:absolute -> Panels schweben über der Map
-            Mobile: position:static -> Panels werden darunter gestapelt (siehe CSS)
-          -->
-          <div id="hud" class="hud">
-            <!-- PARTY PANEL -->
-            <section class="hudPanel" data-panel-id="party" style="--x: 18px; --y: 86px; --w: 300px; --h: 220px;">
+          <!-- Desktop: Panels schweben über der Map (position:absolute via CSS) -->
+          <div id="hud" class="hud" aria-label="HUD Panels">
+            <!-- PARTY -->
+            <section class="hudPanel" data-panel-id="party">
               <div class="hudPanel__titlebar" data-drag-handle>
                 <div class="hudPanel__title">Party</div>
                 <div class="hudPanel__actions">
@@ -59,14 +46,14 @@
                 <div class="muted">
                   Platzhalter: Portraits, HP, Stats.
                   <br><br>
-                  (Desktop: zieh mich, resiz mich. Mobile: normaler Block)
+                  Desktop: ziehen/resizen • Mobile: Fullscreen-Menü über Buttons.
                 </div>
               </div>
               <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
             </section>
 
-            <!-- INVENTORY PANEL -->
-            <section class="hudPanel" data-panel-id="inventory" style="--x: calc(100% - 338px); --y: 86px; --w: 320px; --h: 320px;">
+            <!-- INVENTORY -->
+            <section class="hudPanel" data-panel-id="inventory">
               <div class="hudPanel__titlebar" data-drag-handle>
                 <div class="hudPanel__title">Inventar</div>
                 <div class="hudPanel__actions">
@@ -81,8 +68,8 @@
               <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
             </section>
 
-            <!-- LOG PANEL -->
-            <section class="hudPanel" data-panel-id="log" style="--x: 18px; --y: calc(100% - 250px); --w: 520px; --h: 230px;">
+            <!-- LOG -->
+            <section class="hudPanel" data-panel-id="log">
               <div class="hudPanel__titlebar" data-drag-handle>
                 <div class="hudPanel__title logTitle">Log</div>
                 <div class="hudPanel__actions">
@@ -90,13 +77,13 @@
                 </div>
               </div>
               <div class="hudPanel__body logBody" id="log">
-                <div class="logLine">Willkommen! (Schritt B: BG3 Overlay Panels)</div>
+                <div class="logLine">Willkommen! (Schritt B1.1: Mobile Tabs + Desktop Defaults)</div>
               </div>
               <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
             </section>
 
-            <!-- HOTBAR PANEL -->
-            <section class="hudPanel" data-panel-id="hotbar" style="--x: calc(100% - 458px); --y: calc(100% - 120px); --w: 440px; --h: 100px;">
+            <!-- HOTBAR -->
+            <section class="hudPanel" data-panel-id="hotbar">
               <div class="hudPanel__titlebar" data-drag-handle>
                 <div class="hudPanel__title">Hotbar</div>
                 <div class="hudPanel__actions">
@@ -113,8 +100,22 @@
           </div>
         </div>
 
+        <!-- STATUS -->
         <div class="statusbar">
           <div id="statusText" class="statusbar__text">Lade…</div>
+        </div>
+
+        <!-- MOBILE: Buttons unter der Karte -->
+        <nav class="mobileTabs" id="mobileTabs" aria-label="Mobile Panel Buttons">
+          <button class="mobileTabBtn" type="button" data-open-panel="party">Party</button>
+          <button class="mobileTabBtn" type="button" data-open-panel="inventory">Inventar</button>
+          <button class="mobileTabBtn" type="button" data-open-panel="log">Log</button>
+          <button class="mobileTabBtn" type="button" data-open-panel="hotbar">Hotbar</button>
+        </nav>
+
+        <!-- MOBILE: Backdrop + Close (wird via JS ein/ausgeblendet) -->
+        <div class="mobileOverlay" id="mobileOverlay" aria-hidden="true">
+          <button class="mobileClose" id="mobileClose" type="button" aria-label="Menü schließen">✕</button>
         </div>
       </section>
     </main>

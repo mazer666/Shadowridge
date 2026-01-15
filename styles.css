@@ -1,11 +1,10 @@
 /* ============================================================================
-   Shadowridge – UI Schritt B
+   Shadowridge – UI Schritt B1.1
    - Desktop: BG3-like HUD Overlay Panels (drag + resize)
-   - Mobile: Safe-Area + Panels gestapelt (kein Overlay)
+   - Mobile: Safe-Area + Buttons unter Map + Fullscreen Panel Menüs
    ========================================================================== */
 
 :root{
-  /* dunkle, warme Fantasy-Palette */
   --bg0:#0f0e0c;
   --bg1:#171512;
 
@@ -25,7 +24,7 @@
   --shadow:rgba(0,0,0,.35);
   --radius:16px;
 
-  /* Safe-Area Insets (iOS/Android mit Notch/Homebar) */
+  /* Safe-Area Insets */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -42,7 +41,7 @@ body{
   overflow:hidden;
 }
 
-/* App Container: wir adden Safe-Area Padding, damit nichts unter Notch/Homebar landet */
+/* Safe-Area padding, damit nix unter Notch/Homebar sitzt */
 .app{
   height:100%;
   display:grid;
@@ -97,19 +96,17 @@ body{
 }
 
 /* --- Stage / Map --------------------------------------------------------- */
-.stage{
-  min-height:0;
-}
+.stage{ min-height:0; }
 
 .stage__map{
   min-height:0;
   display:grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto; /* Map, Status, MobileTabs */
   gap:10px;
 }
 
 .canvasWrap{
-  position:relative; /* wichtig: HUD Overlay positioniert sich relativ dazu */
+  position:relative;
   border:1px solid var(--line);
   border-radius:var(--radius);
   background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.45));
@@ -124,7 +121,7 @@ body{
   display:block;
 }
 
-/* Statuszeile unter der Map */
+/* Statuszeile */
 .statusbar{
   border:1px solid var(--line);
   border-radius:var(--radius);
@@ -138,26 +135,22 @@ body{
 
 /* --- HUD Overlay Container ---------------------------------------------- */
 .hud{
-  /* Desktop: absolut über der Map (siehe Media Query) */
-  /* Mobile: normaler Fluss (siehe Media Query) */
-  pointer-events:none; /* WICHTIG: Map bekommt Input, Panels aktivieren pointer-events selbst */
+  pointer-events:none; /* Panels aktivieren pointer-events selbst */
 }
 
-/* --- BG3-like Panels ----------------------------------------------------- */
+/* --- Panels -------------------------------------------------------------- */
 .hudPanel{
-  pointer-events:auto; /* Panel ist anklickbar, obwohl hud pointer-events:none hat */
+  pointer-events:auto;
   border:1px solid var(--line);
   border-radius:18px;
   background: linear-gradient(180deg, rgba(32,26,20,.92), rgba(12,10,8,.80));
   box-shadow: 0 18px 45px rgba(0,0,0,.45);
   overflow:hidden;
+  backdrop-filter: blur(3px);
 
-  /* Default “Floating”-Werte kommen aus Inline-Style (CSS Variablen) */
+  /* Default-Größe – echte Defaults setzt JS (Desktop) */
   width: var(--w, 320px);
   height: var(--h, 240px);
-
-  /* bessere Lesbarkeit */
-  backdrop-filter: blur(3px);
 }
 
 .hudPanel__titlebar{
@@ -167,8 +160,6 @@ body{
   gap:10px;
   padding:10px 12px;
   border-bottom:1px solid rgba(210,162,74,.18);
-
-  /* Drag Handle Feel */
   cursor: grab;
   user-select:none;
 }
@@ -178,7 +169,6 @@ body{
   font-weight:700;
   letter-spacing:.3px;
 }
-
 .logTitle{
   font-family:"Uncial Antiqua", serif;
   font-weight:400;
@@ -213,15 +203,13 @@ body{
   font-size:12px;
 }
 
-.logBody{
-  font-size:12px;
-}
+.logBody{ font-size:12px; }
 .logLine{
   padding:2px 0;
   border-bottom:1px dashed rgba(255,255,255,.08);
 }
 
-/* Resize Handle: eine “Ecke” wie in Desktop-Apps */
+/* Resize Handle */
 .hudPanel__resize{
   position:absolute;
   right:6px;
@@ -234,25 +222,19 @@ body{
   cursor:nwse-resize;
   opacity:.75;
 }
-.hudPanel__resize:hover{
-  opacity:1;
-}
+.hudPanel__resize:hover{ opacity:1; }
 
-/* Collapsed State: Body ausblenden */
-.hudPanel.is-collapsed{
-  height:auto !important;
-}
-.hudPanel.is-collapsed .hudPanel__body{
-  display:none;
-}
+/* Collapsed */
+.hudPanel.is-collapsed{ height:auto !important; }
+.hudPanel.is-collapsed .hudPanel__body{ display:none; }
 
-/* Focus/Z-Order Look */
+/* Active highlight */
 .hudPanel.is-active{
   border-color: rgba(210,162,74,.45);
   box-shadow: 0 22px 60px rgba(0,0,0,.55);
 }
 
-/* --- Desktop: Overlay Mode ---------------------------------------------- */
+/* --- Desktop Overlay Mode ---------------------------------------------- */
 @media (min-width: 981px){
   .canvasWrap{
     height: 100%;
@@ -270,44 +252,115 @@ body{
 
   .hudPanel{
     position:absolute;
-
-    /* Position per CSS var (Inline style) */
-    transform: translate3d(var(--x, 18px), var(--y, 86px), 0);
+    transform: translate3d(var(--x, 18px), var(--y, 18px), 0);
   }
+
+  .mobileTabs{ display:none; }
+  .mobileOverlay{ display:none; }
 }
 
-/* --- Mobile: Panels werden gestapelt (kein Overlay) ---------------------- */
+/* --- Mobile Mode -------------------------------------------------------- */
 @media (max-width: 980px){
   body{ overflow:auto; }
   .app{ overflow:auto; height:auto; }
 
   .canvasWrap{
-    height: 60vh; /* Map sichtbar, Panels darunter */
+    height: 58vh; /* Map prominent */
   }
 
+  /* HUD im Mobile: wir lassen die Panels im DOM, aber sie werden NICHT “gestapelt”.
+     Stattdessen öffnen wir sie Fullscreen via .is-mobile-open. */
   .hud{
-    position:static;
-    padding:10px;
-    display:grid;
-    gap:10px;
+    position:absolute; /* liegt über Map, aber Panels sind standardmäßig versteckt */
+    left:0; top:0; right:0; bottom:0;
+    pointer-events:none;
+  }
 
-    /* Panels NICHT über Map, sondern darunter */
+  /* Standardmäßig Panels im Mobile NICHT anzeigen */
+  .hudPanel{
+    display:none;
+  }
+
+  /* Mobile Tabs unter der Karte */
+  .mobileTabs{
+    display:flex;
+    gap:10px;
+    justify-content:space-between;
+
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background: rgba(0,0,0,.25);
+    padding:10px;
+
+    /* Safe-Area unten extra Polster */
+    padding-bottom: calc(10px + var(--safe-bottom));
+  }
+
+  .mobileTabBtn{
+    flex:1;
+    border:1px solid rgba(255,255,255,.14);
+    background: rgba(0,0,0,.25);
+    color: var(--ink);
+    border-radius:14px;
+    padding:10px 10px;
+    cursor:pointer;
+    font-family:"Cinzel", serif;
+    font-weight:700;
+    letter-spacing:.2px;
+    font-size:12px;
+  }
+  .mobileTabBtn:hover{
+    border-color: rgba(210,162,74,.35);
+    background: rgba(210,162,74,.12);
+  }
+
+  /* Backdrop */
+  .mobileOverlay{
+    position:fixed;
+    inset:0;
+    display:none;
+    background: rgba(0,0,0,.55);
+    z-index: 9000;
+  }
+  .mobileOverlay.is-open{
+    display:block;
+  }
+
+  /* Close button oben rechts (mit safe-area) */
+  .mobileClose{
+    position:absolute;
+    top: calc(12px + var(--safe-top));
+    right: calc(12px + var(--safe-right));
+    border:1px solid rgba(255,255,255,.18);
+    background: rgba(0,0,0,.35);
+    color: var(--ink);
+    border-radius:12px;
+    padding:10px 12px;
+    font-size:14px;
+    cursor:pointer;
+  }
+
+  /* Panel Fullscreen Sheet */
+  .hudPanel.is-mobile-open{
+    display:block;
+    position:fixed;
+    left: calc(12px + var(--safe-left));
+    right: calc(12px + var(--safe-right));
+    top: calc(56px + var(--safe-top));   /* Platz für Close-Button */
+    bottom: calc(12px + var(--safe-bottom));
+    width:auto !important;
+    height:auto !important;
+    transform:none !important;
+    z-index: 9100;
     pointer-events:auto;
   }
 
-  .hudPanel{
-    position:static;
-    transform:none;
-    width:auto;
-    height:auto;
+  .hudPanel.is-mobile-open .hudPanel__resize{
+    display:none;
   }
 
-  .hudPanel__resize{
-    display:none; /* Mobile: kein Resize-Handle */
-  }
-
-  .hudPanel__titlebar{
-    cursor: default; /* Mobile: kein Drag */
+  .hudPanel.is-mobile-open .hudPanel__titlebar{
+    cursor: default;
   }
 }
 
