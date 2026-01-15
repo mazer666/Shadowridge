@@ -88,7 +88,8 @@ https://mazer666.github.io/Shadowridge/
 - **Grafiken**: AI-generiert (Grok / Gemini / ChatGPT) + eigene SVGs
 - Keine fertigen Asset-Packs – alles custom / selbst erstellt
 
-##Mitmachen / Feedback
+## Mitmachen / Feedback
+
 Das Projekt ist noch früh in der Entwicklung. Ich freue mich über:
 - Bug-Reports
 - Balancing-Vorschläge
