@@ -5,12 +5,15 @@
  * - Drag (Titelbar)
  * - Resize (Ecke)
  * - Z-Order
- * - Persistenz in localStorage
- * - (NEU) Collapse = Mini-Panel (Titlebar bleibt sichtbar)
- *   -> CSS macht es klein. JS sorgt für Button-Icon ▾/▸ + Persistenz.
+ * - Persistenz
+ * - Collapse = Mini-Panel (nur Titlebar bleibt sichtbar)
  *
  * Mobile (<=980px):
  * - Buttons unter der Karte öffnen Panels Fullscreen (.is-mobile-open)
+ *
+ * FIX (wichtig):
+ * - Drag-Handler auf der Titlebar darf NICHT starten, wenn man auf Buttons klickt,
+ *   sonst wird der Click "verschluckt" (PointerCapture + preventDefault).
  */
 
 const STORAGE_KEY = "sr.panels.v2";
@@ -45,6 +48,9 @@ function saveLayout(layout) {
   }
 }
 
+/**
+ * Default-Layout basierend auf der Map-Fläche (boundsEl).
+ */
 function applyDefaultLayout(panels, boundsEl, layoutRef, zStart = 10) {
   const b = boundsEl.getBoundingClientRect();
   const margin = 16;
@@ -90,7 +96,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
   let layout = loadLayout() || {};
   let zCounter = layout.__zCounter || 10;
 
-  // Desktop Defaults (nur wenn noch nichts gespeichert ist)
+  // Desktop Defaults: nur wenn noch nichts gespeichert ist
   const hasAnyPanelSaved = panels.some(p => layout[p.dataset.panelId]);
   if (!hasAnyPanelSaved && isDesktopOverlay()) {
     applyDefaultLayout(panels, boundsEl, layout, zCounter);
@@ -98,7 +104,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     zCounter = layout.__zCounter || (zCounter + 10);
   }
 
-  // Layout anwenden
+  // Layout anwenden + Button-Icons initial setzen
   for (const panel of panels) {
     const id = panel.dataset.panelId;
     const saved = layout[id];
@@ -108,18 +114,17 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
       if (typeof saved.y === "string") panel.style.setProperty("--y", saved.y);
       if (typeof saved.w === "string") panel.style.setProperty("--w", saved.w);
       if (typeof saved.h === "string") panel.style.setProperty("--h", saved.h);
-
       if (saved.collapsed) panel.classList.add("is-collapsed");
       if (typeof saved.z === "number") panel.style.zIndex = String(saved.z);
     } else {
       panel.style.zIndex = String(++zCounter);
     }
 
-    // Collapse-Button Icon initial setzen (▾ offen / ▸ zu)
     const collapseBtn = panel.querySelector('[data-action="collapse"]');
     if (collapseBtn) {
-      collapseBtn.textContent = panel.classList.contains("is-collapsed") ? "▸" : "▾";
-      collapseBtn.setAttribute("aria-expanded", panel.classList.contains("is-collapsed") ? "false" : "true");
+      const collapsed = panel.classList.contains("is-collapsed");
+      collapseBtn.textContent = collapsed ? "▸" : "▾";
+      collapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
     }
   }
 
@@ -153,7 +158,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     commitPanel(panel);
   }
 
-  // Collapse toggle: bleibt als Mini stehen (CSS macht die Mini-Höhe)
+  // Collapse toggle
   function toggleCollapse(panel) {
     panel.classList.toggle("is-collapsed");
 
@@ -191,6 +196,11 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     handle.addEventListener("pointerdown", (e) => {
       if (!isDesktopOverlay()) return;
       if (e.button !== 0) return;
+
+      // FIX: Wenn der Pointerdown von einem Button (z.B. Collapse) kommt,
+      // darf NICHT draggen, sonst verschlucken wir den Click.
+      const target = e.target;
+      if (target && target.closest && target.closest("button")) return;
 
       activate(panel);
 
@@ -237,7 +247,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     handle.addEventListener("pointercancel", endDrag);
   }
 
-  // Resize (Desktop)
+  // Resize
   function setupResize(panel) {
     const handle = panel.querySelector("[data-resize-handle]");
     if (!handle) return;
@@ -256,7 +266,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
       if (!isDesktopOverlay()) return;
       if (e.button !== 0) return;
 
-      // Wenn eingeklappt: nicht resizen (mini bleibt mini)
+      // wenn eingeklappt: nicht resizen
       if (panel.classList.contains("is-collapsed")) return;
 
       activate(panel);
@@ -359,13 +369,20 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
 
   // Wire events
   for (const panel of panels) {
-    panel.addEventListener("pointerdown", () => {
+    panel.addEventListener("pointerdown", (e) => {
+      // wenn man Buttons klickt, nicht extra "activate" nötig (optional)
+      if (e.target && e.target.closest && e.target.closest("button")) return;
       if (!isDesktopOverlay()) return;
       activate(panel);
     });
 
     const collapseBtn = panel.querySelector('[data-action="collapse"]');
     if (collapseBtn) {
+      // FIX: pointerdown darf nicht an Drag-Handle weitergehen
+      collapseBtn.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+      });
+
       collapseBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         toggleCollapse(panel);
