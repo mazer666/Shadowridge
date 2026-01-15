@@ -1,9 +1,9 @@
 /* ============================================================================
-   Shadowridge – UI (B2 Hotbar)
+   Shadowridge – UI (B2 Hotbar + Cooldown/Charges)
    - BG3-ish Panels
    - Docking Guides
-   - Hotbar: echte Slots + CSS Icons + Tooltips
-   - (FIX) Mobile Panels bleiben bedienbar (pointer-events)
+   - Hotbar: Slots + CSS Icons + Tooltips
+   - (NEU) Cooldown Ring + Timer + Charges Badge
    ========================================================================== */
 
 :root{
@@ -149,7 +149,7 @@ body{
 
 /* --- HUD Overlay Container ---------------------------------------------- */
 .hud{
-  pointer-events:none; /* Desktop: Map bleibt klickbar, Panels fangen Input */
+  pointer-events:none;
 }
 
 /* --- Panels -------------------------------------------------------------- */
@@ -326,6 +326,7 @@ body{
   align-items:stretch;
 }
 
+/* Slot */
 .hotbarSlot{
   position:relative;
   height:52px;
@@ -340,7 +341,7 @@ body{
   cursor:pointer;
   user-select:none;
   outline:none;
-  touch-action: manipulation; /* Mobile: schnelle taps */
+  touch-action: manipulation;
 }
 
 .hotbarSlot:hover{
@@ -353,6 +354,16 @@ body{
     0 8px 22px rgba(0,0,0,.35),
     inset 0 1px 0 rgba(255,255,255,.08),
     inset 0 -1px 0 rgba(0,0,0,.55);
+}
+
+/* Disabled feel (cooldown or 0 charges) */
+.hotbarSlot.is-disabled{
+  opacity: .65;
+  filter: saturate(.85);
+}
+.hotbarSlot.is-disabled:hover{
+  border-color: rgba(210,162,74,.28);
+  cursor: not-allowed;
 }
 
 .hotbarKey{
@@ -368,6 +379,7 @@ body{
   padding:1px 5px;
 }
 
+/* “Icon” Fläche */
 .hotbarIcon{
   position:absolute;
   inset:0;
@@ -384,6 +396,7 @@ body{
   box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
 }
 
+/* Icon Varianten */
 .hotbarSlot[data-icon="sword"] .hotbarIcon::before{
   background:
     linear-gradient(45deg, rgba(255,255,255,.10), rgba(0,0,0,.35)),
@@ -421,6 +434,88 @@ body{
   border-color: rgba(255,210,120,.32);
 }
 
+/* --- Cooldown overlay ---------------------------------------------------- */
+.hotbarOverlay{
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  pointer-events:none;
+  display:none; /* nur bei cooldown sichtbar */
+}
+
+/* Dunkler “Lock” */
+.hotbarCooldownShade{
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  background: rgba(0,0,0,.42);
+}
+
+/* Ring: conic-gradient mit CSS Variable --cdAngle */
+.hotbarCooldownRing{
+  position:absolute;
+  inset:6px;
+  border-radius:12px;
+  background:
+    conic-gradient(
+      rgba(210,162,74,.88) 0deg var(--cdAngle, 0deg),
+      rgba(0,0,0,0) var(--cdAngle, 0deg) 360deg
+    );
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.55));
+}
+
+/* Innerer “Cutout”, damit es wie ein Ring wirkt */
+.hotbarCooldownInner{
+  position:absolute;
+  inset:9px;
+  border-radius:10px;
+  background: rgba(0,0,0,.38);
+}
+
+/* Zahl */
+.hotbarCooldownText{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight:700;
+  font-size:14px;
+  color: rgba(242,234,215,.92);
+  text-shadow: 0 2px 0 rgba(0,0,0,.55);
+}
+
+/* Wenn Slot cooldown hat */
+.hotbarSlot.is-cooldown .hotbarOverlay{
+  display:block;
+}
+
+/* --- Charges badge ------------------------------------------------------- */
+.hotbarCharges{
+  position:absolute;
+  right:7px;
+  bottom:7px;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 10px;
+  display:none; /* nur wenn sinnvoll */
+  align-items:center;
+  justify-content:center;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size:10px;
+  color: rgba(242,234,215,.90);
+
+  background: rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.12);
+}
+
+.hotbarSlot.has-charges .hotbarCharges{
+  display:flex;
+}
+
+/* Tooltip */
 .hotbarTooltip{
   position:absolute;
   min-width: 220px;
@@ -494,14 +589,12 @@ body{
 
   .canvasWrap{ height: 58vh; }
 
-  /* MOBILE FIX:
-     HUD muss klickbar sein, sobald ein Panel fullscreen geöffnet ist.
-     Sonst fallen Taps durch aufs Backdrop und schließen sofort. */
+  /* Mobile: HUD muss klickbar sein, wenn Panel geöffnet */
   .hud{
     position:absolute;
     left:0; top:0; right:0; bottom:0;
-    pointer-events:auto; /* <-- FIX */
-    z-index: 9050;       /* über Map, unter open panel */
+    pointer-events:auto;
+    z-index: 9050;
   }
 
   .hudPanel{ display:none; }
@@ -541,7 +634,7 @@ body{
     inset:0;
     display:none;
     background: rgba(0,0,0,.55);
-    z-index: 9000; /* unter Panel, über rest */
+    z-index: 9000;
   }
   .mobileOverlay.is-open{ display:block; }
 
@@ -568,7 +661,7 @@ body{
     width:auto !important;
     height:auto !important;
     transform:none !important;
-    z-index: 9100;         /* über Backdrop */
+    z-index: 9100;
     pointer-events:auto;
     touch-action: manipulation;
   }
@@ -578,6 +671,7 @@ body{
 
   .dockGuides{ display:none; }
 
+  /* Mobile: Slots etwas größer */
   .hotbarSlots{ gap:10px; }
   .hotbarSlot{ height:58px; }
 }

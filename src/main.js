@@ -8,7 +8,8 @@
  * - MapCanvas Rendering
  * - Log
  * - HUD Panels (Desktop: Drag/Resize + Docking; Mobile: Fullscreen Menüs)
- * - (NEU) Hotbar Slots + Tooltips
+ * - Hotbar Slots + Tooltips
+ * - (NEU) Cooldown/Charges Feedback (onFail)
  */
 
 import { state, setState } from "./state.js";
@@ -70,7 +71,7 @@ map.resizeToParent();
 
 // Init Dungeon
 regenerateDungeon();
-addLog("B2: Hotbar hat jetzt echte Slots + Tooltips. Drück 1–0.");
+addLog("B3: Hotbar hat jetzt Cooldowns (Ring+Zahl) und Charges (x/y).");
 
 // Controls
 setupControls({
@@ -93,7 +94,7 @@ setupControls({
   onLog: (t) => addLog(t),
 });
 
-// HUD Panels (Docking/Collapse etc. kommt aus deiner panels.js)
+// HUD Panels
 if (hudEl && canvasEl?.parentElement) {
   setupPanels({
     hudEl,
@@ -104,17 +105,22 @@ if (hudEl && canvasEl?.parentElement) {
   });
 }
 
-// Hotbar setup
+// Hotbar
 setupHotbar({
   slotsEl: hotbarSlotsEl,
   tooltipEl: hotbarTooltipEl,
   tooltipTitleEl: hotbarTooltipTitleEl,
   tooltipDescEl: hotbarTooltipDescEl,
   tooltipMetaEl: hotbarTooltipMetaEl,
+
   onActivate: (slot) => {
-    // Später verbinden wir das mit Skills/Items/State.
     addLog(`Hotbar: ${slot.key} → ${slot.name}`);
     setState("ui.statusText", `Aktion: ${slot.name}`);
+  },
+
+  onFail: (msg) => {
+    addLog(msg);
+    setState("ui.statusText", msg.replace(/^⛔\s*/, ""));
   },
 });
 
