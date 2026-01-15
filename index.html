@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
   <title>Shadowridge – Endless Descent</title>
+
+  <!-- BG3-Feeling: Cinzel (Titel), MedievalSharp (UI), Uncial Antiqua (Akzent) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=MedievalSharp&family=Uncial+Antiqua&display=swap" rel="stylesheet">
@@ -13,12 +15,8 @@
 
 <body>
   <!--
-    Layout-Idee (sehr simpel, später bauen wir das aus):
-    - Header oben
-    - Links Party-Panel (Platzhalter)
-    - Mitte Canvas (Map)
-    - Rechts Inventory-Panel (Platzhalter)
-    - Unten Hotbar + Log (Platzhalter)
+    WICHTIG: Safe-Area für Mobile (Notch/Homebar)
+    Wir machen das über CSS (env(safe-area-inset-*)).
   -->
   <div class="app">
     <header class="topbar">
@@ -33,59 +31,95 @@
       </div>
     </header>
 
-    <main class="main">
-      <section class="panel panel--left">
-        <div class="panel__title">Party</div>
-        <div class="panel__body">
-          <div class="muted">
-            Platzhalter (kommt später): Portraits, HP, Stats.
-          </div>
-        </div>
-      </section>
-
-      <section class="center">
-        <!--
-          Canvas: da rendern wir die Map.
-          Wichtig: Das Canvas bekommt die “logische Größe” per JS (HiDPI scaling).
-        -->
+    <!--
+      STAGE = die “Bühne”
+      - Desktop: Canvas nimmt den Platz ein, HUD-Panels liegen darüber (Overlay)
+      - Mobile: HUD wird normal unterhalb gestapelt (kein Overlay)
+    -->
+    <main class="stage">
+      <section class="stage__map">
         <div class="canvasWrap">
           <canvas id="map" aria-label="Dungeon Map"></canvas>
+
+          <!--
+            HUD Overlay Container:
+            Desktop: position:absolute -> Panels schweben über der Map
+            Mobile: position:static -> Panels werden darunter gestapelt (siehe CSS)
+          -->
+          <div id="hud" class="hud">
+            <!-- PARTY PANEL -->
+            <section class="hudPanel" data-panel-id="party" style="--x: 18px; --y: 86px; --w: 300px; --h: 220px;">
+              <div class="hudPanel__titlebar" data-drag-handle>
+                <div class="hudPanel__title">Party</div>
+                <div class="hudPanel__actions">
+                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen">▾</button>
+                </div>
+              </div>
+              <div class="hudPanel__body">
+                <div class="muted">
+                  Platzhalter: Portraits, HP, Stats.
+                  <br><br>
+                  (Desktop: zieh mich, resiz mich. Mobile: normaler Block)
+                </div>
+              </div>
+              <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
+            </section>
+
+            <!-- INVENTORY PANEL -->
+            <section class="hudPanel" data-panel-id="inventory" style="--x: calc(100% - 338px); --y: 86px; --w: 320px; --h: 320px;">
+              <div class="hudPanel__titlebar" data-drag-handle>
+                <div class="hudPanel__title">Inventar</div>
+                <div class="hudPanel__actions">
+                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen">▾</button>
+                </div>
+              </div>
+              <div class="hudPanel__body">
+                <div class="muted">
+                  Platzhalter: 8 Slots pro Held, Drag & Drop.
+                </div>
+              </div>
+              <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
+            </section>
+
+            <!-- LOG PANEL -->
+            <section class="hudPanel" data-panel-id="log" style="--x: 18px; --y: calc(100% - 250px); --w: 520px; --h: 230px;">
+              <div class="hudPanel__titlebar" data-drag-handle>
+                <div class="hudPanel__title logTitle">Log</div>
+                <div class="hudPanel__actions">
+                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen">▾</button>
+                </div>
+              </div>
+              <div class="hudPanel__body logBody" id="log">
+                <div class="logLine">Willkommen! (Schritt B: BG3 Overlay Panels)</div>
+              </div>
+              <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
+            </section>
+
+            <!-- HOTBAR PANEL -->
+            <section class="hudPanel" data-panel-id="hotbar" style="--x: calc(100% - 458px); --y: calc(100% - 120px); --w: 440px; --h: 100px;">
+              <div class="hudPanel__titlebar" data-drag-handle>
+                <div class="hudPanel__title">Hotbar</div>
+                <div class="hudPanel__actions">
+                  <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen">▾</button>
+                </div>
+              </div>
+              <div class="hudPanel__body">
+                <div class="muted">
+                  Platzhalter: Actions + Items (Hotkeys 1–0)
+                </div>
+              </div>
+              <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
+            </section>
+          </div>
         </div>
 
         <div class="statusbar">
           <div id="statusText" class="statusbar__text">Lade…</div>
         </div>
       </section>
-
-      <section class="panel panel--right">
-        <div class="panel__title">Inventar</div>
-        <div class="panel__body">
-          <div class="muted">
-            Platzhalter (kommt später): 8 Slots pro Held, Drag & Drop.
-          </div>
-        </div>
-      </section>
     </main>
-
-    <footer class="footer">
-      <div class="hotbar">
-        <div class="panel__title">Hotbar</div>
-        <div class="muted">Platzhalter: Actions + Items, Hotkeys 1–0</div>
-      </div>
-
-      <div class="log">
-        <div class="panel__title log__title">Log</div>
-        <div class="log__body" id="log">
-          <div class="logLine">Willkommen! (Schritt 1: Grundgerüst)</div>
-        </div>
-      </div>
-    </footer>
   </div>
 
-  <!--
-    Wir nutzen ES-Module (type="module"), damit wir sauber in Dateien strukturieren können.
-    Kein Build nötig — läuft direkt im Browser und auf GitHub Pages.
-  -->
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

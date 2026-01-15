@@ -1,20 +1,21 @@
 /**
  * src/main.js
  * -----------------------------------------------------------------------------
- * Einstiegspunkt. Hier verdrahten wir:
+ * Einstiegspunkt. Verdrahtet:
  * - State
  * - Dungeon Generator
  * - Controls
  * - MapCanvas Rendering
  * - Log
+ * - (NEU) HUD Panels: Drag/Resize + Persistenz
  */
 
 import { state, setState } from "./state.js";
 import { generateDungeon, isWalkable } from "./game/dungeon.js";
 import { MapCanvas } from "./ui/mapCanvas.js";
 import { startLoop } from "./game/loop.js";
-
 import { setupControls } from "./input/controls.js";
+import { setupPanels } from "./ui/panels.js";
 
 // --- DOM helpers -----------------------------------------------------------
 
@@ -56,13 +57,15 @@ function regenerateDungeon() {
 
 const canvasEl = $("map");
 const statusEl = $("statusText");
+const hudEl = $("hud");
 
+// Map Canvas
 const map = new MapCanvas(canvasEl);
 map.resizeToParent();
 
 // Dungeon einmal erzeugen
 regenerateDungeon();
-addLog("Schritt 1 bereit: Du kannst dich bewegen (WASD / Pfeile).");
+addLog("Schritt B1 bereit: Desktop Panels sind jetzt verschiebbar + resizable.");
 
 // Controls
 setupControls({
@@ -80,9 +83,18 @@ setupControls({
   },
   onReset: () => {
     regenerateDungeon();
+    addLog("Neu generiert.");
   },
   onLog: (t) => addLog(t),
 });
+
+// HUD Panels (Drag/Resize) – bounds ist die canvasWrap (Parent vom Canvas)
+if (hudEl && canvasEl?.parentElement) {
+  setupPanels({
+    hudEl,
+    boundsEl: canvasEl.parentElement, // .canvasWrap
+  });
+}
 
 // Render loop
 startLoop({
