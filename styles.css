@@ -1,6 +1,6 @@
 /* ============================================================================
-   Shadowridge – UI Schritt B1.1
-   - Desktop: BG3-like HUD Overlay Panels (drag + resize)
+   Shadowridge – UI Schritt B1.1 + Desktop Mini-Collapse
+   - Desktop: HUD Overlay Panels (drag + resize) + einklappbar als Mini-Version
    - Mobile: Safe-Area + Buttons unter Map + Fullscreen Panel Menüs
    ========================================================================== */
 
@@ -148,7 +148,6 @@ body{
   overflow:hidden;
   backdrop-filter: blur(3px);
 
-  /* Default-Größe – echte Defaults setzt JS (Desktop) */
   width: var(--w, 320px);
   height: var(--h, 240px);
 }
@@ -224,14 +223,40 @@ body{
 }
 .hudPanel__resize:hover{ opacity:1; }
 
-/* Collapsed */
-.hudPanel.is-collapsed{ height:auto !important; }
-.hudPanel.is-collapsed .hudPanel__body{ display:none; }
-
 /* Active highlight */
 .hudPanel.is-active{
   border-color: rgba(210,162,74,.45);
   box-shadow: 0 22px 60px rgba(0,0,0,.55);
+}
+
+/* --------------------------------------------------------------------------
+   DESKTOP: "Einklappen" = Mini-Version (nur Titlebar bleibt stehen)
+   - bleibt sichtbar
+   - bleibt dragbar
+   - resize wird deaktiviert
+   - beim Aufklappen kommt die alte Höhe wieder (weil --h unverändert bleibt)
+   -------------------------------------------------------------------------- */
+@media (min-width: 981px){
+  .hudPanel.is-collapsed{
+    /* echte Mini-Leiste */
+    height: 46px !important;
+    min-height: 46px;
+  }
+
+  .hudPanel.is-collapsed .hudPanel__body{
+    display:none;
+  }
+
+  .hudPanel.is-collapsed .hudPanel__resize{
+    display:none;
+  }
+
+  /* Optional: Mini-Leiste leicht kompakter */
+  .hudPanel.is-collapsed .hudPanel__titlebar{
+    border-bottom:none;
+    padding-top:10px;
+    padding-bottom:10px;
+  }
 }
 
 /* --- Desktop Overlay Mode ---------------------------------------------- */
@@ -268,20 +293,16 @@ body{
     height: 58vh; /* Map prominent */
   }
 
-  /* HUD im Mobile: wir lassen die Panels im DOM, aber sie werden NICHT “gestapelt”.
-     Stattdessen öffnen wir sie Fullscreen via .is-mobile-open. */
   .hud{
-    position:absolute; /* liegt über Map, aber Panels sind standardmäßig versteckt */
+    position:absolute;
     left:0; top:0; right:0; bottom:0;
     pointer-events:none;
   }
 
-  /* Standardmäßig Panels im Mobile NICHT anzeigen */
   .hudPanel{
     display:none;
   }
 
-  /* Mobile Tabs unter der Karte */
   .mobileTabs{
     display:flex;
     gap:10px;
@@ -291,8 +312,6 @@ body{
     border-radius:var(--radius);
     background: rgba(0,0,0,.25);
     padding:10px;
-
-    /* Safe-Area unten extra Polster */
     padding-bottom: calc(10px + var(--safe-bottom));
   }
 
@@ -314,7 +333,6 @@ body{
     background: rgba(210,162,74,.12);
   }
 
-  /* Backdrop */
   .mobileOverlay{
     position:fixed;
     inset:0;
@@ -326,7 +344,6 @@ body{
     display:block;
   }
 
-  /* Close button oben rechts (mit safe-area) */
   .mobileClose{
     position:absolute;
     top: calc(12px + var(--safe-top));
@@ -340,13 +357,12 @@ body{
     cursor:pointer;
   }
 
-  /* Panel Fullscreen Sheet */
   .hudPanel.is-mobile-open{
     display:block;
     position:fixed;
     left: calc(12px + var(--safe-left));
     right: calc(12px + var(--safe-right));
-    top: calc(56px + var(--safe-top));   /* Platz für Close-Button */
+    top: calc(56px + var(--safe-top));
     bottom: calc(12px + var(--safe-bottom));
     width:auto !important;
     height:auto !important;

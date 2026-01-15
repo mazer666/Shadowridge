@@ -4,17 +4,16 @@
  * Desktop (>=981px):
  * - Drag (Titelbar)
  * - Resize (Ecke)
- * - Z-Order: angeklicktes Panel nach vorne
- * - Persistenz: Position/Größe/Collapsed in localStorage
- * - (NEU) vernünftige Default-Positionen/Größen, wenn noch nichts gespeichert ist
+ * - Z-Order
+ * - Persistenz in localStorage
+ * - (NEU) Collapse = Mini-Panel (Titlebar bleibt sichtbar)
+ *   -> CSS macht es klein. JS sorgt für Button-Icon ▾/▸ + Persistenz.
  *
  * Mobile (<=980px):
- * - Unter der Karte Buttons (Party/Inventar/Log/Hotbar)
- * - Tap öffnet Panel als Fullscreen Sheet (.is-mobile-open)
- * - Overlay/Close Button schließt wieder
+ * - Buttons unter der Karte öffnen Panels Fullscreen (.is-mobile-open)
  */
 
-const STORAGE_KEY = "sr.panels.v2"; // v2 weil wir Defaults/Mode erweitert haben
+const STORAGE_KEY = "sr.panels.v2";
 
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
@@ -46,15 +45,10 @@ function saveLayout(layout) {
   }
 }
 
-/**
- * Erzeugt ein “gutes” Default Layout basierend auf der Map-Fläche (boundsEl).
- * Das ist viel besser als harte calc()-Strings im HTML.
- */
 function applyDefaultLayout(panels, boundsEl, layoutRef, zStart = 10) {
   const b = boundsEl.getBoundingClientRect();
   const margin = 16;
 
-  // Helfer
   const put = (id, x, y, w, h, z) => {
     const panel = panels.find(p => p.dataset.panelId === id);
     if (!panel) return;
@@ -75,20 +69,13 @@ function applyDefaultLayout(panels, boundsEl, layoutRef, zStart = 10) {
     };
   };
 
-  // Größen mit “BG3 HUD Gefühl”
-  const partyW = 320;
-  const partyH = 240;
-
-  const invW = 340;
-  const invH = 320;
-
+  const partyW = 320, partyH = 240;
+  const invW = 340, invH = 320;
   const logW = Math.min(560, Math.max(420, b.width * 0.52));
   const logH = 240;
-
   const hotW = Math.min(520, Math.max(380, b.width * 0.45));
   const hotH = 110;
 
-  // Positionen
   put("party", margin, margin, partyW, partyH, zStart + 1);
   put("inventory", b.width - invW - margin, margin, invW, invH, zStart + 2);
   put("log", margin, b.height - logH - margin, logW, logH, zStart + 3);
@@ -103,8 +90,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
   let layout = loadLayout() || {};
   let zCounter = layout.__zCounter || 10;
 
-  // --- 1) Wenn noch kein Layout gespeichert ist, setze “gute Defaults” (Desktop)
-  // Wir machen das nur im Desktop Mode, weil Mobile Fullscreen Panels nutzt.
+  // Desktop Defaults (nur wenn noch nichts gespeichert ist)
   const hasAnyPanelSaved = panels.some(p => layout[p.dataset.panelId]);
   if (!hasAnyPanelSaved && isDesktopOverlay()) {
     applyDefaultLayout(panels, boundsEl, layout, zCounter);
@@ -112,7 +98,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     zCounter = layout.__zCounter || (zCounter + 10);
   }
 
-  // --- 2) Layout anwenden (wenn vorhanden)
+  // Layout anwenden
   for (const panel of panels) {
     const id = panel.dataset.panelId;
     const saved = layout[id];
@@ -122,14 +108,22 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
       if (typeof saved.y === "string") panel.style.setProperty("--y", saved.y);
       if (typeof saved.w === "string") panel.style.setProperty("--w", saved.w);
       if (typeof saved.h === "string") panel.style.setProperty("--h", saved.h);
+
       if (saved.collapsed) panel.classList.add("is-collapsed");
       if (typeof saved.z === "number") panel.style.zIndex = String(saved.z);
     } else {
       panel.style.zIndex = String(++zCounter);
     }
+
+    // Collapse-Button Icon initial setzen (▾ offen / ▸ zu)
+    const collapseBtn = panel.querySelector('[data-action="collapse"]');
+    if (collapseBtn) {
+      collapseBtn.textContent = panel.classList.contains("is-collapsed") ? "▸" : "▾";
+      collapseBtn.setAttribute("aria-expanded", panel.classList.contains("is-collapsed") ? "false" : "true");
+    }
   }
 
-  // --- Helper: Panel Layout speichern --------------------------------------
+  // Speichern
   function commitPanel(panel) {
     const id = panel.dataset.panelId;
     if (!id) return;
@@ -151,7 +145,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     saveLayout(layout);
   }
 
-  // --- Focus/Z-Order -------------------------------------------------------
+  // Z-Order / Active
   function activate(panel) {
     for (const p of panels) p.classList.remove("is-active");
     panel.classList.add("is-active");
@@ -159,12 +153,21 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     commitPanel(panel);
   }
 
+  // Collapse toggle: bleibt als Mini stehen (CSS macht die Mini-Höhe)
   function toggleCollapse(panel) {
     panel.classList.toggle("is-collapsed");
+
+    const btn = panel.querySelector('[data-action="collapse"]');
+    if (btn) {
+      const collapsed = panel.classList.contains("is-collapsed");
+      btn.textContent = collapsed ? "▸" : "▾";
+      btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    }
+
     commitPanel(panel);
   }
 
-  // --- Drag ----------------------------------------------------------------
+  // Drag
   function setupDrag(panel) {
     const handle = panel.querySelector("[data-drag-handle]");
     if (!handle) return;
@@ -234,7 +237,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     handle.addEventListener("pointercancel", endDrag);
   }
 
-  // --- Resize --------------------------------------------------------------
+  // Resize (Desktop)
   function setupResize(panel) {
     const handle = panel.querySelector("[data-resize-handle]");
     if (!handle) return;
@@ -252,6 +255,9 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     handle.addEventListener("pointerdown", (e) => {
       if (!isDesktopOverlay()) return;
       if (e.button !== 0) return;
+
+      // Wenn eingeklappt: nicht resizen (mini bleibt mini)
+      if (panel.classList.contains("is-collapsed")) return;
 
       activate(panel);
 
@@ -305,14 +311,13 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     handle.addEventListener("pointercancel", endResize);
   }
 
-  // --- Normalize in bounds (Desktop) --------------------------------------
+  // Desktop: innerhalb Bounds halten
   function normalizeIntoBounds() {
     if (!isDesktopOverlay()) return;
 
     const b = boundsEl.getBoundingClientRect();
 
     for (const panel of panels) {
-      // Wenn ein Panel im Mobile Fullscreen ist, nicht anfassen
       if (panel.classList.contains("is-mobile-open")) continue;
 
       const r = panel.getBoundingClientRect();
@@ -325,7 +330,7 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     }
   }
 
-  // --- Mobile Fullscreen Panels -------------------------------------------
+  // Mobile Fullscreen
   function closeMobilePanel() {
     if (!isMobile()) return;
 
@@ -352,15 +357,13 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     }
   }
 
-  // --- Wire events ---------------------------------------------------------
+  // Wire events
   for (const panel of panels) {
-    // Activate on pointerdown (Desktop)
     panel.addEventListener("pointerdown", () => {
       if (!isDesktopOverlay()) return;
       activate(panel);
     });
 
-    // Collapse
     const collapseBtn = panel.querySelector('[data-action="collapse"]');
     if (collapseBtn) {
       collapseBtn.addEventListener("click", (e) => {
@@ -373,11 +376,9 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     setupResize(panel);
   }
 
-  // Desktop resize normalize
   window.addEventListener("resize", normalizeIntoBounds);
   normalizeIntoBounds();
 
-  // Mobile buttons
   if (mobileTabsEl) {
     mobileTabsEl.addEventListener("click", (e) => {
       const btn = e.target?.closest?.("[data-open-panel]");
@@ -387,24 +388,19 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
     });
   }
 
-  // Mobile close
   if (mobileCloseEl) {
     mobileCloseEl.addEventListener("click", () => closeMobilePanel());
   }
   if (mobileOverlayEl) {
-    // Klick auf Backdrop schließt auch
     mobileOverlayEl.addEventListener("click", (e) => {
-      // Wenn man exakt aufs Overlay klickt (nicht auf Close-Button), schließen
       if (e.target === mobileOverlayEl) closeMobilePanel();
     });
   }
 
-  // Wenn wir vom Mobile->Desktop wechseln: Mobile Panels schließen und Desktop bounds normalisieren
   const mqDesktop = window.matchMedia("(min-width: 981px)");
   const onModeChange = () => {
     closeMobilePanel();
 
-    // Wenn jetzt Desktop aktiv ist und (noch) kein Layout existiert, setze Defaults
     const hasSaved = panels.some(p => layout[p.dataset.panelId]);
     if (mqDesktop.matches && !hasSaved) {
       applyDefaultLayout(panels, boundsEl, layout, zCounter);
@@ -417,7 +413,6 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
 
   mqDesktop.addEventListener?.("change", onModeChange);
 
-  // Cleanup
   return () => {
     window.removeEventListener("resize", normalizeIntoBounds);
     mqDesktop.removeEventListener?.("change", onModeChange);
