@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>Shadowridge – Endless Descent</title>
+
+  <!--
+    Fonts wie in der README erwähnt (Cinzel / MedievalSharp / Uncial Antiqua).
+    Das ist optional, aber hilft fürs “BG3-inspirierte” Feeling.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=MedievalSharp&family=Uncial+Antiqua&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <!--
+    Layout-Idee (sehr simpel, später bauen wir das aus):
+    - Header oben
+    - Links Party-Panel (Platzhalter)
+    - Mitte Canvas (Map)
+    - Rechts Inventory-Panel (Platzhalter)
+    - Unten Hotbar + Log (Platzhalter)
+  -->
+  <div class="app">
+    <header class="topbar">
+      <div class="title">
+        <div class="title__main">Shadowridge</div>
+        <div class="title__sub">Endless Descent (Prototype)</div>
+      </div>
+
+      <div class="topbar__hint">
+        <span class="kbd">WASD</span> / <span class="kbd">Pfeile</span> bewegen •
+        <span class="kbd">R</span> neu generieren
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="panel panel--left">
+        <div class="panel__title">Party</div>
+        <div class="panel__body">
+          <div class="muted">
+            Platzhalter (kommt später): Portraits, HP, Stats.
+          </div>
+        </div>
+      </section>
+
+      <section class="center">
+        <!--
+          Canvas: da rendern wir die Map.
+          Wichtig: Das Canvas bekommt die “logische Größe” per JS (HiDPI scaling).
+        -->
+        <div class="canvasWrap">
+          <canvas id="map" aria-label="Dungeon Map"></canvas>
+        </div>
+
+        <div class="statusbar">
+          <div id="statusText" class="statusbar__text">Lade…</div>
+        </div>
+      </section>
+
+      <section class="panel panel--right">
+        <div class="panel__title">Inventar</div>
+        <div class="panel__body">
+          <div class="muted">
+            Platzhalter (kommt später): 8 Slots pro Held, Drag & Drop.
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="hotbar">
+        <div class="panel__title">Hotbar</div>
+        <div class="muted">Platzhalter: Actions + Items, Hotkeys 1–0</div>
+      </div>
+
+      <div class="log">
+        <div class="panel__title log__title">Log</div>
+        <div class="log__body" id="log">
+          <div class="logLine">Willkommen! (Schritt 1: Grundgerüst)</div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!--
+    Wir nutzen ES-Module (type="module"), damit wir sauber in Dateien strukturieren können.
+    Kein Build nötig — läuft direkt im Browser und auf GitHub Pages.
+  -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
