@@ -68,15 +68,12 @@ https://mazer666.github.io/Shadowridge/
 ## Installation / Lokal starten
 
 1. Repository klonen
-   bash
    git clone https://github.com/mazer666/Shadowridge.git
    cd Shadowridge
 
 2. Einfach im Browser öffnen (kein Build nötig)
-   Bash
-
    Öffne index.html mit Live Server (VS Code Extension) oder direkt im Browser:   open index.html
-   Oder nutze einen lokalen Server:   Bash# Mit Python (sehr einfach): python -m http.server 8000
+   Oder nutze einen lokalen Server:   Mit Python (sehr einfach): python -m http.server 8000
    Dann http://localhost:8000 im Browser
 
 ## Assets & Design
