@@ -1,7 +1,8 @@
 /* ============================================================================
-   Shadowridge – UI Schritt B1.1 + Desktop Mini-Collapse
-   - Desktop: HUD Overlay Panels (drag + resize) + einklappbar als Mini-Version
+   Shadowridge – UI Schritt B2
+   - Desktop: BG3-like HUD Overlay Panels (drag + resize) + Docking/Snapping
    - Mobile: Safe-Area + Buttons unter Map + Fullscreen Panel Menüs
+   - (NEU) Docking Guides (sichtbare Linien beim Einrasten)
    ========================================================================== */
 
 :root{
@@ -35,7 +36,10 @@
 html,body{ height:100%; margin:0; }
 
 body{
-  background: radial-gradient(1200px 700px at 50% 20%, #1f1a14 0%, var(--bg0) 60%);
+  background:
+    radial-gradient(1200px 700px at 50% 20%, #1f1a14 0%, var(--bg0) 60%),
+    radial-gradient(900px 500px at 20% 80%, rgba(210,162,74,.06), transparent 60%),
+    radial-gradient(900px 500px at 80% 80%, rgba(200,75,75,.05), transparent 60%);
   color:var(--ink);
   font-family: "MedievalSharp", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   overflow:hidden;
@@ -62,8 +66,20 @@ body{
   padding:12px 14px;
   border:1px solid var(--line);
   border-radius:var(--radius);
-  background: linear-gradient(180deg, rgba(30,24,18,.86), rgba(14,12,10,.86));
+  background:
+    linear-gradient(180deg, rgba(30,24,18,.90), rgba(14,12,10,.88));
   box-shadow: 0 12px 30px var(--shadow);
+  position:relative;
+  overflow:hidden;
+}
+.topbar::before{
+  content:"";
+  position:absolute;
+  inset:-40px;
+  background:
+    repeating-linear-gradient(35deg, rgba(255,255,255,.03) 0 1px, transparent 1px 10px);
+  opacity:.20;
+  pointer-events:none;
 }
 
 .title__main{
@@ -71,6 +87,7 @@ body{
   font-weight:700;
   font-size:20px;
   letter-spacing:.6px;
+  text-shadow: 0 2px 0 rgba(0,0,0,.35);
 }
 .title__sub{
   color:var(--muted);
@@ -109,7 +126,9 @@ body{
   position:relative;
   border:1px solid var(--line);
   border-radius:var(--radius);
-  background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.45));
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.45)),
+    radial-gradient(900px 500px at 50% 30%, rgba(210,162,74,.08), transparent 60%);
   box-shadow: 0 12px 30px var(--shadow);
   overflow:hidden;
   min-height:0;
@@ -141,17 +160,40 @@ body{
 /* --- Panels -------------------------------------------------------------- */
 .hudPanel{
   pointer-events:auto;
-  border:1px solid var(--line);
   border-radius:18px;
-  background: linear-gradient(180deg, rgba(32,26,20,.92), rgba(12,10,8,.80));
-  box-shadow: 0 18px 45px rgba(0,0,0,.45);
   overflow:hidden;
   backdrop-filter: blur(3px);
 
+  /* “BG3-ish” Rahmen-Layer */
+  background:
+    linear-gradient(180deg, rgba(32,26,20,.92), rgba(12,10,8,.80));
+  border:1px solid rgba(210,162,74,.30);
+  box-shadow:
+    0 18px 45px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -1px 0 rgba(0,0,0,.35);
+
   width: var(--w, 320px);
   height: var(--h, 240px);
+  position:relative;
 }
 
+/* Ornamente in den Ecken (rein CSS, keine Bilder) */
+.hudPanel::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.55;
+  background:
+    radial-gradient(12px 12px at 14px 14px, rgba(210,162,74,.55), transparent 70%),
+    radial-gradient(12px 12px at calc(100% - 14px) 14px, rgba(210,162,74,.55), transparent 70%),
+    radial-gradient(12px 12px at 14px calc(100% - 14px), rgba(210,162,74,.35), transparent 70%),
+    radial-gradient(12px 12px at calc(100% - 14px) calc(100% - 14px), rgba(210,162,74,.35), transparent 70%),
+    repeating-linear-gradient(35deg, rgba(255,255,255,.03) 0 1px, transparent 1px 10px);
+}
+
+/* Titlebar */
 .hudPanel__titlebar{
   display:flex;
   align-items:center;
@@ -161,12 +203,15 @@ body{
   border-bottom:1px solid rgba(210,162,74,.18);
   cursor: grab;
   user-select:none;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,0));
 }
 
 .hudPanel__title{
   font-family:"Cinzel", serif;
   font-weight:700;
   letter-spacing:.3px;
+  text-shadow: 0 2px 0 rgba(0,0,0,.35);
 }
 .logTitle{
   font-family:"Uncial Antiqua", serif;
@@ -180,17 +225,23 @@ body{
   gap:8px;
 }
 
+/* BG3-ish icon button */
 .hudBtn{
+  width:30px;
+  height:26px;
+  display:grid;
+  place-items:center;
+
   border:1px solid rgba(255,255,255,.14);
   background: rgba(0,0,0,.25);
   color: var(--ink);
   border-radius:10px;
-  padding:4px 8px;
   cursor:pointer;
   font-family: inherit;
+  line-height:1;
 }
 .hudBtn:hover{
-  border-color: rgba(210,162,74,.35);
+  border-color: rgba(210,162,74,.40);
   background: rgba(210,162,74,.12);
 }
 
@@ -225,38 +276,53 @@ body{
 
 /* Active highlight */
 .hudPanel.is-active{
-  border-color: rgba(210,162,74,.45);
-  box-shadow: 0 22px 60px rgba(0,0,0,.55);
+  border-color: rgba(210,162,74,.55);
+  box-shadow:
+    0 22px 60px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.45);
 }
 
-/* --------------------------------------------------------------------------
-   DESKTOP: "Einklappen" = Mini-Version (nur Titlebar bleibt stehen)
-   - bleibt sichtbar
-   - bleibt dragbar
-   - resize wird deaktiviert
-   - beim Aufklappen kommt die alte Höhe wieder (weil --h unverändert bleibt)
-   -------------------------------------------------------------------------- */
+/* Desktop: Collapse = Mini-Leiste (Titlebar bleibt) */
 @media (min-width: 981px){
   .hudPanel.is-collapsed{
-    /* echte Mini-Leiste */
     height: 46px !important;
     min-height: 46px;
   }
-
-  .hudPanel.is-collapsed .hudPanel__body{
-    display:none;
-  }
-
-  .hudPanel.is-collapsed .hudPanel__resize{
-    display:none;
-  }
-
-  /* Optional: Mini-Leiste leicht kompakter */
+  .hudPanel.is-collapsed .hudPanel__body{ display:none; }
+  .hudPanel.is-collapsed .hudPanel__resize{ display:none; }
   .hudPanel.is-collapsed .hudPanel__titlebar{
     border-bottom:none;
-    padding-top:10px;
-    padding-bottom:10px;
   }
+}
+
+/* --- Docking Guides (nur Desktop sinnvoll) --------------------------------
+   Panels “snappen” und wir zeigen dabei eine goldene Linie.
+----------------------------------------------------------------------------- */
+.dockGuides{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index: 8000; /* unter Panels (Panels kommen i.d.R. höher), aber über Map */
+}
+.dockGuideLine{
+  position:absolute;
+  opacity:0;
+  transform: translateZ(0);
+  transition: opacity .06s linear;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.35));
+}
+.dockGuideLine.is-on{ opacity:1; }
+
+.dockGuideLine--v{
+  top:0; bottom:0;
+  width:2px;
+  background: linear-gradient(180deg, transparent, rgba(210,162,74,.85), transparent);
+}
+.dockGuideLine--h{
+  left:0; right:0;
+  height:2px;
+  background: linear-gradient(90deg, transparent, rgba(210,162,74,.85), transparent);
 }
 
 /* --- Desktop Overlay Mode ---------------------------------------------- */
@@ -290,7 +356,7 @@ body{
   .app{ overflow:auto; height:auto; }
 
   .canvasWrap{
-    height: 58vh; /* Map prominent */
+    height: 58vh;
   }
 
   .hud{
@@ -299,9 +365,7 @@ body{
     pointer-events:none;
   }
 
-  .hudPanel{
-    display:none;
-  }
+  .hudPanel{ display:none; }
 
   .mobileTabs{
     display:flex;
@@ -340,9 +404,7 @@ body{
     background: rgba(0,0,0,.55);
     z-index: 9000;
   }
-  .mobileOverlay.is-open{
-    display:block;
-  }
+  .mobileOverlay.is-open{ display:block; }
 
   .mobileClose{
     position:absolute;
@@ -371,13 +433,11 @@ body{
     pointer-events:auto;
   }
 
-  .hudPanel.is-mobile-open .hudPanel__resize{
-    display:none;
-  }
+  .hudPanel.is-mobile-open .hudPanel__resize{ display:none; }
+  .hudPanel.is-mobile-open .hudPanel__titlebar{ cursor: default; }
 
-  .hudPanel.is-mobile-open .hudPanel__titlebar{
-    cursor: default;
-  }
+  /* Dock Guides im Mobile nicht nötig */
+  .dockGuides{ display:none; }
 }
 
 .muted{ color: var(--muted); }
