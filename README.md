@@ -90,7 +90,8 @@ https://mazer666.github.io/Shadowridge/
 
 ## Mitmachen / Feedback
 
-Das Projekt ist noch früh in der Entwicklung. Ich freue mich über:
+Das Projekt ist noch früh in der Entwicklung. 
+Ich freue mich über:
 - Bug-Reports
 - Balancing-Vorschläge
 - Ideen für neue Tabellen-Einträge / Items / Traits
