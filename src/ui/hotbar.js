@@ -1,722 +1,497 @@
-/* ============================================================================
-   Shadowridge – UI (Hotbar Layout Toggle + Tooltip Docking)
-   ========================================================================== */
+import { buildDemoHotbarSlots } from "./hotbarData.js";
 
-:root{
-  --bg0:#0f0e0c;
-  --bg1:#171512;
-
-  --panel:rgba(22,18,14,.86);
-  --panel2:rgba(12,10,8,.70);
-
-  --ink:#f2ead7;
-  --muted:#b9b0a0;
-
-  --gold:#d2a24a;
-  --gold2:#b88a37;
-  --accent:#c84b4b;
-
-  --line:rgba(210,162,74,.25);
-  --line2:rgba(255,255,255,.10);
-
-  --shadow:rgba(0,0,0,.35);
-  --radius:16px;
-
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
+function isTouchLikely() {
+  return window.matchMedia("(pointer: coarse)").matches;
 }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; margin:0; }
-
-body{
-  background:
-    radial-gradient(1200px 700px at 50% 20%, #1f1a14 0%, var(--bg0) 60%),
-    radial-gradient(900px 500px at 20% 80%, rgba(210,162,74,.06), transparent 60%),
-    radial-gradient(900px 500px at 80% 80%, rgba(200,75,75,.05), transparent 60%);
-  color:var(--ink);
-  font-family: "MedievalSharp", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  overflow:hidden;
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-.app{
-  height:100%;
-  display:grid;
-  grid-template-rows: auto 1fr;
-  gap:10px;
-  padding:
-    calc(10px + var(--safe-top))
-    calc(10px + var(--safe-right))
-    calc(10px + var(--safe-bottom))
-    calc(10px + var(--safe-left));
+function nowMs() {
+  return Date.now();
 }
 
-/* --- Header -------------------------------------------------------------- */
-.topbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:12px 14px;
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  background: linear-gradient(180deg, rgba(30,24,18,.90), rgba(14,12,10,.88));
-  box-shadow: 0 12px 30px var(--shadow);
-  position:relative;
-  overflow:hidden;
-}
-.topbar::before{
-  content:"";
-  position:absolute;
-  inset:-40px;
-  background: repeating-linear-gradient(35deg, rgba(255,255,255,.03) 0 1px, transparent 1px 10px);
-  opacity:.20;
-  pointer-events:none;
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
 }
 
-.title__main{
-  font-family:"Cinzel", serif;
-  font-weight:700;
-  font-size:20px;
-  letter-spacing:.6px;
-  text-shadow: 0 2px 0 rgba(0,0,0,.35);
-}
-.title__sub{
-  color:var(--muted);
-  font-size:12px;
-  margin-top:2px;
+function rectIntersects(a, b) {
+  return !(
+    a.right <= b.left ||
+    a.left >= b.right ||
+    a.bottom <= b.top ||
+    a.top >= b.bottom
+  );
 }
 
-.topbar__hint{
-  color:var(--muted);
-  font-size:12px;
-  display:flex;
-  gap:6px;
-  align-items:center;
-}
-.kbd{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size:11px;
-  padding:2px 6px;
-  border-radius:8px;
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(0,0,0,.25);
-  color: var(--ink);
-}
+function positionTooltipDocked({ tooltipEl, anchorRect, padding = 8, gap = 8 }) {
+  tooltipEl.classList.add("is-on");
+  tooltipEl.style.left = "0px";
+  tooltipEl.style.top = "0px";
 
-/* --- Stage / Map --------------------------------------------------------- */
-.stage{ min-height:0; }
-.stage__map{
-  min-height:0;
-  display:grid;
-  grid-template-rows: 1fr auto auto;
-  gap:10px;
-}
+  const tipRect = tooltipEl.getBoundingClientRect();
+  const tipW = tipRect.width;
+  const tipH = tipRect.height;
 
-.canvasWrap{
-  position:relative;
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  background:
-    linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.45)),
-    radial-gradient(900px 500px at 50% 30%, rgba(210,162,74,.08), transparent 60%);
-  box-shadow: 0 12px 30px var(--shadow);
-  overflow:hidden;
-  min-height:0;
-}
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
 
-#map{
-  width:100%;
-  height:100%;
-  display:block;
-}
+  const anchor = anchorRect;
 
-.statusbar{
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  background: rgba(0,0,0,.25);
-  padding:8px 10px;
-}
-.statusbar__text{
-  color:var(--muted);
-  font-size:12px;
-}
+  const candidates = [
+    { x: anchor.right + gap, y: anchor.bottom + gap },                 // RB (prefer)
+    { x: anchor.left, y: anchor.bottom + gap },                        // BL
+    { x: anchor.right + gap, y: anchor.top - tipH - gap },             // TR
+    { x: anchor.left, y: anchor.top - tipH - gap },                    // TL
+    { x: anchor.right + gap, y: anchor.top },                          // R
+    { x: anchor.left - tipW - gap, y: anchor.top },                    // L
+  ];
 
-/* --- HUD Overlay Container ---------------------------------------------- */
-.hud{
-  pointer-events:none;
-}
+  const fits = (x, y) =>
+    x >= padding &&
+    y >= padding &&
+    x + tipW <= vw - padding &&
+    y + tipH <= vh - padding;
 
-/* --- Panels -------------------------------------------------------------- */
-.hudPanel{
-  pointer-events:auto;
-  border-radius:18px;
-  overflow:hidden;
-  backdrop-filter: blur(3px);
-
-  background: linear-gradient(180deg, rgba(32,26,20,.92), rgba(12,10,8,.80));
-  border:1px solid rgba(210,162,74,.30);
-  box-shadow:
-    0 18px 45px rgba(0,0,0,.45),
-    inset 0 1px 0 rgba(255,255,255,.06),
-    inset 0 -1px 0 rgba(0,0,0,.35);
-
-  width: var(--w, 320px);
-  height: var(--h, 240px);
-  position:relative;
-}
-.hudPanel::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  opacity:.55;
-  background:
-    radial-gradient(12px 12px at 14px 14px, rgba(210,162,74,.55), transparent 70%),
-    radial-gradient(12px 12px at calc(100% - 14px) 14px, rgba(210,162,74,.55), transparent 70%),
-    radial-gradient(12px 12px at 14px calc(100% - 14px), rgba(210,162,74,.35), transparent 70%),
-    radial-gradient(12px 12px at calc(100% - 14px) calc(100% - 14px), rgba(210,162,74,.35), transparent 70%),
-    repeating-linear-gradient(35deg, rgba(255,255,255,.03) 0 1px, transparent 1px 10px);
-}
-
-.hudPanel__titlebar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding:10px 12px;
-  border-bottom:1px solid rgba(210,162,74,.18);
-  cursor: grab;
-  user-select:none;
-  background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,0));
-}
-
-/* Kompakter Titlebar (Hotbar) */
-.hudPanel__titlebar--compact{
-  padding:6px 10px;
-}
-
-.hudPanel__title{
-  font-family:"Cinzel", serif;
-  font-weight:700;
-  letter-spacing:.3px;
-  text-shadow: 0 2px 0 rgba(0,0,0,.35);
-}
-.logTitle{
-  font-family:"Uncial Antiqua", serif;
-  font-weight:400;
-  letter-spacing:.5px;
-}
-
-.hudPanel__actions{
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-.hudBtn{
-  width:30px;
-  height:26px;
-  display:grid;
-  place-items:center;
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(0,0,0,.25);
-  color: var(--ink);
-  border-radius:10px;
-  cursor:pointer;
-  font-family: inherit;
-  line-height:1;
-}
-.hudBtn:hover{
-  border-color: rgba(210,162,74,.40);
-  background: rgba(210,162,74,.12);
-}
-
-.hudPanel__body{
-  padding:10px 12px;
-  height: calc(100% - 44px);
-  overflow:auto;
-  color: var(--muted);
-  font-size:12px;
-}
-
-/* Hotbar hat kompaktere Titlebar -> Body-Höhe anpassen */
-.hudPanel--hotbar .hudPanel__body{
-  height: calc(100% - 36px);
-}
-
-.logBody{ font-size:12px; }
-.logLine{
-  padding:2px 0;
-  border-bottom:1px dashed rgba(255,255,255,.08);
-}
-
-.hudPanel__resize{
-  position:absolute;
-  right:6px;
-  bottom:6px;
-  width:18px;
-  height:18px;
-  border-right:2px solid rgba(242,234,215,.55);
-  border-bottom:2px solid rgba(242,234,215,.55);
-  border-radius:3px;
-  cursor:nwse-resize;
-  opacity:.75;
-}
-.hudPanel__resize:hover{ opacity:1; }
-
-.hudPanel.is-active{
-  border-color: rgba(210,162,74,.55);
-  box-shadow:
-    0 22px 60px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.08),
-    inset 0 -1px 0 rgba(0,0,0,.45);
-}
-
-/* Desktop: Collapse = Mini-Leiste */
-@media (min-width: 981px){
-  .hudPanel.is-collapsed{
-    height: 46px !important;
-    min-height: 46px;
-  }
-  .hudPanel.is-collapsed .hudPanel__body{ display:none; }
-  .hudPanel.is-collapsed .hudPanel__resize{ display:none; }
-  .hudPanel.is-collapsed .hudPanel__titlebar{ border-bottom:none; }
-}
-
-/* --- Docking Guides ------------------------------------------------------ */
-.dockGuides{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  z-index: 8000;
-}
-.dockGuideLine{
-  position:absolute;
-  opacity:0;
-  transform: translateZ(0);
-  transition: opacity .06s linear;
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,.35));
-}
-.dockGuideLine.is-on{ opacity:1; }
-.dockGuideLine--v{
-  top:0; bottom:0;
-  width:2px;
-  background: linear-gradient(180deg, transparent, rgba(210,162,74,.85), transparent);
-}
-.dockGuideLine--h{
-  left:0; right:0;
-  height:2px;
-  background: linear-gradient(90deg, transparent, rgba(210,162,74,.85), transparent);
-}
-
-/* --- HOTBAR -------------------------------------------------------------- */
-.hotbarBody{
-  position:relative;
-  overflow:visible; /* Tooltip kann “drüber” ohne abgeschnitten zu werden (mobile) */
-}
-
-.hotbarWrap{
-  position:relative;
-  padding:6px 6px 8px 6px;
-  border:1px solid rgba(210,162,74,.18);
-  border-radius:14px;
-  background: rgba(0,0,0,.18);
-}
-
-/* Layout-Modi */
-.hotbarSlots{
-  display:grid;
-  gap:8px;
-  align-items:stretch;
-}
-.hotbarSlots.is-row10{
-  grid-template-columns: repeat(10, 1fr);
-}
-.hotbarSlots.is-grid2x5{
-  grid-template-columns: repeat(5, 1fr);
-}
-
-/* Slot ist immer quadratisch */
-.hotbarSlot{
-  position:relative;
-  aspect-ratio: 1 / 1;
-  width:100%;
-  border-radius:14px;
-  border:1px solid rgba(210,162,74,.28);
-  background:
-    radial-gradient(55px 40px at 35% 30%, rgba(255,255,255,.06), transparent 60%),
-    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.45));
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.06),
-    inset 0 -1px 0 rgba(0,0,0,.45);
-  cursor:pointer;
-  user-select:none;
-  outline:none;
-  touch-action: manipulation;
-}
-
-.hotbarSlot:hover{ border-color: rgba(210,162,74,.48); }
-
-.hotbarSlot.is-selected{
-  border-color: rgba(210,162,74,.70);
-  box-shadow:
-    0 8px 22px rgba(0,0,0,.35),
-    inset 0 1px 0 rgba(255,255,255,.08),
-    inset 0 -1px 0 rgba(0,0,0,.55);
-}
-
-.hotbarSlot.is-disabled{
-  opacity: .65;
-  filter: saturate(.85);
-}
-.hotbarSlot.is-disabled:hover{
-  border-color: rgba(210,162,74,.28);
-  cursor: not-allowed;
-}
-
-/* Labels skalieren mit Slotgröße */
-.hotbarKey{
-  position:absolute;
-  left:7%;
-  top:7%;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: clamp(9px, 1.2vw, 11px);
-  color: rgba(242,234,215,.80);
-  background: rgba(0,0,0,.28);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:999px;
-  padding:1px 6px;
-}
-
-.hotbarIcon{
-  position:absolute;
-  inset:0;
-  display:grid;
-  place-items:center;
-}
-.hotbarIcon::before{
-  content:"";
-  width:45%;
-  height:45%;
-  border-radius:10px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(210,162,74,.14);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
-}
-
-/* Icon Varianten */
-.hotbarSlot[data-icon="sword"] .hotbarIcon::before{
-  background:
-    linear-gradient(45deg, rgba(255,255,255,.10), rgba(0,0,0,.35)),
-    linear-gradient(180deg, rgba(210,162,74,.35), rgba(210,162,74,.08));
-  border-color: rgba(210,162,74,.35);
-}
-.hotbarSlot[data-icon="shield"] .hotbarIcon::before{
-  background:
-    radial-gradient(14px 14px at 50% 35%, rgba(255,255,255,.10), transparent 65%),
-    linear-gradient(180deg, rgba(140,170,190,.22), rgba(0,0,0,.45));
-  border-color: rgba(140,170,190,.35);
-}
-.hotbarSlot[data-icon="potion"] .hotbarIcon::before{
-  background:
-    radial-gradient(12px 12px at 50% 35%, rgba(255,255,255,.14), transparent 65%),
-    linear-gradient(180deg, rgba(200,75,75,.26), rgba(0,0,0,.45));
-  border-color: rgba(200,75,75,.35);
-}
-.hotbarSlot[data-icon="spell"] .hotbarIcon::before{
-  background:
-    radial-gradient(18px 18px at 50% 45%, rgba(120,160,255,.18), transparent 70%),
-    linear-gradient(180deg, rgba(90,120,255,.16), rgba(0,0,0,.45));
-  border-color: rgba(90,120,255,.35);
-}
-.hotbarSlot[data-icon="boot"] .hotbarIcon::before{
-  background:
-    radial-gradient(18px 18px at 50% 45%, rgba(210,162,74,.14), transparent 70%),
-    linear-gradient(180deg, rgba(210,162,74,.10), rgba(0,0,0,.45));
-  border-color: rgba(210,162,74,.28);
-}
-.hotbarSlot[data-icon="lantern"] .hotbarIcon::before{
-  background:
-    radial-gradient(12px 12px at 50% 40%, rgba(255,210,120,.22), transparent 70%),
-    linear-gradient(180deg, rgba(255,210,120,.12), rgba(0,0,0,.45));
-  border-color: rgba(255,210,120,.32);
-}
-
-/* Cooldown overlay */
-.hotbarOverlay{
-  position:absolute;
-  inset:0;
-  border-radius:14px;
-  pointer-events:none;
-  display:none;
-}
-.hotbarCooldownShade{
-  position:absolute;
-  inset:0;
-  border-radius:14px;
-  background: rgba(0,0,0,.42);
-}
-.hotbarCooldownRing{
-  position:absolute;
-  inset:10%;
-  border-radius:12px;
-  background:
-    conic-gradient(
-      rgba(210,162,74,.88) 0deg var(--cdAngle, 0deg),
-      rgba(0,0,0,0) var(--cdAngle, 0deg) 360deg
-    );
-  filter: drop-shadow(0 2px 3px rgba(0,0,0,.55));
-}
-.hotbarCooldownInner{
-  position:absolute;
-  inset:14%;
-  border-radius:10px;
-  background: rgba(0,0,0,.38);
-}
-.hotbarCooldownText{
-  position:absolute;
-  inset:0;
-  display:grid;
-  place-items:center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-weight:700;
-  font-size: clamp(12px, 1.4vw, 16px);
-  color: rgba(242,234,215,.92);
-  text-shadow: 0 2px 0 rgba(0,0,0,.55);
-}
-.hotbarSlot.is-cooldown .hotbarOverlay{ display:block; }
-
-/* Charges badge */
-.hotbarCharges{
-  position:absolute;
-  right:7%;
-  bottom:7%;
-  min-width: 22px;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 999px;
-  display:none;
-  align-items:center;
-  justify-content:center;
-
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: clamp(9px, 1.2vw, 11px);
-  color: rgba(242,234,215,.90);
-
-  background: rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.12);
-}
-.hotbarSlot.has-charges .hotbarCharges{ display:flex; }
-
-/* Tooltip (Desktop = fixed, wird in body geportalt) */
-.hotbarTooltip{
-  position:fixed;
-  min-width: 220px;
-  max-width: 340px;
-  padding:10px 12px;
-  border-radius:14px;
-  border:1px solid rgba(210,162,74,.35);
-  background: linear-gradient(180deg, rgba(20,16,12,.95), rgba(10,8,6,.92));
-  box-shadow: 0 18px 45px rgba(0,0,0,.55);
-  pointer-events:none;
-  opacity:0;
-  transform: translate3d(0, 6px, 0);
-  transition: opacity .08s linear, transform .08s ease;
-  z-index: 9999;
-}
-.hotbarTooltip.is-on{
-  opacity:1;
-  transform: translate3d(0, 0, 0);
-}
-
-.hotbarTooltip__title{
-  font-family:"Cinzel", serif;
-  font-weight:700;
-  color: var(--ink);
-  margin-bottom:4px;
-}
-.hotbarTooltip__desc{
-  color: var(--muted);
-  font-size:12px;
-  margin-bottom:8px;
-}
-.hotbarTooltip__meta{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-}
-.hotbarPill{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:4px 8px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.22);
-  color: rgba(242,234,215,.82);
-  font-size:11px;
-}
-.hotbarPill strong{
-  color: rgba(242,234,215,.92);
-  font-weight:700;
-}
-.hotbarPill--bad{
-  border-color: rgba(200,75,75,.35);
-  background: rgba(200,75,75,.10);
-}
-.hotbarPill--cd{
-  border-color: rgba(210,162,74,.30);
-  background: rgba(210,162,74,.10);
-}
-.hotbarPill--charges{
-  border-color: rgba(140,170,190,.30);
-  background: rgba(140,170,190,.10);
-}
-
-/* Hint: am Desktop optional ausblenden, spart Platz */
-@media (min-width: 981px){
-  .hotbarHint{ display:none; }
-}
-
-/* --- Desktop Overlay Mode ---------------------------------------------- */
-@media (min-width: 981px){
-  .canvasWrap{
-    height: 100%;
-    min-height: 540px;
+  for (const c of candidates) {
+    const testRect = { left: c.x, top: c.y, right: c.x + tipW, bottom: c.y + tipH };
+    if (fits(c.x, c.y) && !rectIntersects(testRect, anchor)) {
+      tooltipEl.style.left = `${Math.round(c.x)}px`;
+      tooltipEl.style.top = `${Math.round(c.y)}px`;
+      return;
+    }
   }
 
-  .hud{
-    position:absolute;
-    left:0; top:0; right:0; bottom:0;
-    pointer-events:none;
+  // Fallback: clamp from preferred RB then push away from anchor if needed
+  let x = anchor.right + gap;
+  let y = anchor.bottom + gap;
+
+  if (x + tipW > vw - padding) x = anchor.left;
+  if (y + tipH > vh - padding) y = anchor.top - tipH - gap;
+
+  x = clamp(x, padding, vw - tipW - padding);
+  y = clamp(y, padding, vh - tipH - padding);
+
+  let testRect = { left: x, top: y, right: x + tipW, bottom: y + tipH };
+  if (rectIntersects(testRect, anchor)) {
+    const downY = anchor.bottom + gap;
+    const upY = anchor.top - tipH - gap;
+
+    if (downY + tipH <= vh - padding) y = downY;
+    else if (upY >= padding) y = upY;
+
+    const rightX = anchor.right + gap;
+    const leftX = anchor.left - tipW - gap;
+
+    if (rightX + tipW <= vw - padding) x = rightX;
+    else if (leftX >= padding) x = leftX;
+
+    x = clamp(x, padding, vw - tipW - padding);
+    y = clamp(y, padding, vh - tipH - padding);
   }
 
-  .hudPanel{
-    position:absolute;
-    transform: translate3d(var(--x, 18px), var(--y, 18px), 0);
-  }
-
-  .mobileTabs{ display:none; }
-  .mobileOverlay{ display:none; }
+  tooltipEl.style.left = `${Math.round(x)}px`;
+  tooltipEl.style.top = `${Math.round(y)}px`;
 }
 
-/* --- Mobile Mode -------------------------------------------------------- */
-@media (max-width: 980px){
-  body{ overflow:auto; }
-  .app{ overflow:auto; height:auto; }
+function createSlotButton(slot) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "hotbarSlot";
+  btn.setAttribute("role", "button");
+  btn.dataset.icon = slot.icon || "sword";
+  btn.dataset.slotId = slot.id;
+  btn.setAttribute("aria-label", `${slot.name} (Taste ${slot.key})`);
 
-  .canvasWrap{ height: 58vh; }
+  const key = document.createElement("div");
+  key.className = "hotbarKey";
+  key.textContent = slot.key;
 
-  .hud{
-    position:absolute;
-    left:0; top:0; right:0; bottom:0;
-    pointer-events:auto;
-    z-index: 9050;
-  }
+  const icon = document.createElement("div");
+  icon.className = "hotbarIcon";
+  icon.setAttribute("aria-hidden", "true");
 
-  .hudPanel{ display:none; }
+  const overlay = document.createElement("div");
+  overlay.className = "hotbarOverlay";
+  overlay.setAttribute("aria-hidden", "true");
 
-  .mobileTabs{
-    display:flex;
-    gap:10px;
-    justify-content:space-between;
+  const shade = document.createElement("div");
+  shade.className = "hotbarCooldownShade";
 
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    background: rgba(0,0,0,.25);
-    padding:10px;
-    padding-bottom: calc(10px + var(--safe-bottom));
-  }
+  const ring = document.createElement("div");
+  ring.className = "hotbarCooldownRing";
 
-  .mobileTabBtn{
-    flex:1;
-    border:1px solid rgba(255,255,255,.14);
-    background: rgba(0,0,0,.25);
-    color: var(--ink);
-    border-radius:14px;
-    padding:10px 10px;
-    cursor:pointer;
-    font-family:"Cinzel", serif;
-    font-weight:700;
-    letter-spacing:.2px;
-    font-size:12px;
-  }
-  .mobileTabBtn:hover{
-    border-color: rgba(210,162,74,.35);
-    background: rgba(210,162,74,.12);
-  }
+  const inner = document.createElement("div");
+  inner.className = "hotbarCooldownInner";
 
-  .mobileOverlay{
-    position:fixed;
-    inset:0;
-    display:none;
-    background: rgba(0,0,0,.55);
-    z-index: 9000;
-  }
-  .mobileOverlay.is-open{ display:block; }
+  const cdText = document.createElement("div");
+  cdText.className = "hotbarCooldownText";
+  cdText.textContent = "";
 
-  .mobileClose{
-    position:absolute;
-    top: calc(12px + var(--safe-top));
-    right: calc(12px + var(--safe-right));
-    border:1px solid rgba(255,255,255,.18);
-    background: rgba(0,0,0,.35);
-    color: var(--ink);
-    border-radius:12px;
-    padding:10px 12px;
-    font-size:14px;
-    cursor:pointer;
-  }
+  overlay.appendChild(shade);
+  overlay.appendChild(ring);
+  overlay.appendChild(inner);
+  overlay.appendChild(cdText);
 
-  .hudPanel.is-mobile-open{
-    display:block;
-    position:fixed;
-    left: calc(12px + var(--safe-left));
-    right: calc(12px + var(--safe-right));
-    top: calc(56px + var(--safe-top));
-    bottom: calc(12px + var(--safe-bottom));
-    width:auto !important;
-    height:auto !important;
-    transform:none !important;
-    z-index: 9100;
-    pointer-events:auto;
-    touch-action: manipulation;
-  }
+  const charges = document.createElement("div");
+  charges.className = "hotbarCharges";
+  charges.textContent = "";
 
-  .hudPanel.is-mobile-open .hudPanel__resize{ display:none; }
-  .hudPanel.is-mobile-open .hudPanel__titlebar{ cursor: default; }
+  btn.appendChild(key);
+  btn.appendChild(icon);
+  btn.appendChild(overlay);
+  btn.appendChild(charges);
 
-  .dockGuides{ display:none; }
+  btn._sr = { cdText, charges };
+
+  return btn;
 }
 
-.muted{ color: var(--muted); }
+export function setupHotbar({
+  slotsEl,
+  tooltipEl,
+  tooltipTitleEl,
+  tooltipDescEl,
+  tooltipMetaEl,
+  onActivate,
+  onFail,
+}) {
+  if (!slotsEl || !tooltipEl) return () => {};
 
-/* Touch/Coarse Pointer: Tooltip als Inline-Info (nicht fixed) */
-@media (pointer: coarse){
-  .hotbarWrap{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
+  const wrapEl = slotsEl.closest(".hotbarWrap") || slotsEl.parentElement;
+  const hotbarPanelEl = wrapEl?.closest?.(".hudPanel--hotbar");
+
+  const originalTooltipParent = tooltipEl.parentElement;
+  if (tooltipEl.parentElement !== document.body) document.body.appendChild(tooltipEl);
+
+  const slots = buildDemoHotbarSlots();
+  let selectedIndex = 0;
+  let tooltipOpen = false;
+
+  slotsEl.innerHTML = "";
+  const slotButtons = slots.map((slot) => {
+    const btn = createSlotButton(slot);
+    slotsEl.appendChild(btn);
+    return btn;
+  });
+
+  function setLayoutMode(mode) {
+    slotsEl.classList.toggle("is-row10", mode === "row10");
+    slotsEl.classList.toggle("is-grid2x5", mode === "grid2x5");
   }
 
-  .hotbarTooltip{
-    position:relative;
-    left:auto !important;
-    top:auto !important;
-    width:100%;
-    max-width:none;
-    pointer-events:auto;
-    transform:none;
-    transition: opacity .08s linear;
-    margin: 2px 2px 0 2px;
+  function readCssPx(el, propName, fallbackPx) {
+    const v = getComputedStyle(el).getPropertyValue(propName).trim();
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : fallbackPx;
   }
 
-  .hotbarSlots{ order: 2; }
-  .hotbarTooltip{ order: 1; }
+  function applyAutoLayout() {
+    if (!wrapEl) return;
 
-  .hotbarTooltip:not(.is-on){
-    display:none;
+    const slotPx = readCssPx(slotsEl, "--slot", 52);
+    const gapPx = readCssPx(slotsEl, "--gap", 10);
+
+    const available = wrapEl.clientWidth - 20;
+    const needRow10 = (10 * slotPx) + (9 * gapPx);
+
+    if (available >= needRow10) setLayoutMode("row10");
+    else setLayoutMode("grid2x5");
   }
+
+  let resizeObs = null;
+  if (hotbarPanelEl && "ResizeObserver" in window) {
+    resizeObs = new ResizeObserver(() => {
+      applyAutoLayout();
+      if (tooltipOpen) {
+        const btn = slotButtons[selectedIndex];
+        if (btn) showTooltipForIndex(selectedIndex, btn);
+      }
+    });
+    resizeObs.observe(hotbarPanelEl);
+  } else {
+    window.addEventListener("resize", applyAutoLayout);
+  }
+
+  applyAutoLayout();
+
+  function setSelected(index) {
+    selectedIndex = Math.max(0, Math.min(index, slotButtons.length - 1));
+    for (let i = 0; i < slotButtons.length; i++) {
+      slotButtons[i].classList.toggle("is-selected", i === selectedIndex);
+    }
+  }
+
+  function slotIsOnCooldown(slot) {
+    return slot.cooldownEndMs > nowMs();
+  }
+  function slotHasCharges(slot) {
+    return slot.maxCharges > 0;
+  }
+  function slotIsOutOfCharges(slot) {
+    return slotHasCharges(slot) && slot.charges <= 0;
+  }
+  function slotIsUsable(slot) {
+    if (slotIsOnCooldown(slot)) return false;
+    if (slotIsOutOfCharges(slot)) return false;
+    return true;
+  }
+
+  function buildMetaPills(slot) {
+    const pills = [];
+    pills.push({ text: `Taste ${slot.key}`, cls: "" });
+    if (slot.baseMeta) pills.push({ text: slot.baseMeta, cls: "" });
+
+    if (slotHasCharges(slot)) {
+      pills.push({ text: `Charges ${slot.charges}/${slot.maxCharges}`, cls: "hotbarPill--charges" });
+    }
+
+    if (slot.cooldownSec > 0) {
+      if (slotIsOnCooldown(slot)) {
+        const rem = Math.max(0, slot.cooldownEndMs - nowMs()) / 1000;
+        pills.push({ text: `Cooldown ${Math.ceil(rem)}s`, cls: "hotbarPill--cd" });
+      } else {
+        pills.push({ text: `Cooldown ${slot.cooldownSec}s`, cls: "hotbarPill--cd" });
+      }
+    }
+
+    if (!slotIsUsable(slot)) {
+      if (slotIsOnCooldown(slot)) pills.push({ text: "⛔ On Cooldown", cls: "hotbarPill--bad" });
+      if (slotIsOutOfCharges(slot)) pills.push({ text: "⛔ Keine Charges", cls: "hotbarPill--bad" });
+    }
+
+    return pills;
+  }
+
+  function renderMetaPills(slot) {
+    if (!tooltipMetaEl) return;
+    const pills = buildMetaPills(slot);
+    tooltipMetaEl.innerHTML = pills.map(p => {
+      const cls = `hotbarPill ${p.cls || ""}`.trim();
+      return `<span class="${cls}"><strong>•</strong> ${escapeHtml(p.text)}</span>`;
+    }).join("");
+  }
+
+  function showTooltipForIndex(index, anchorEl) {
+    const slot = slots[index];
+    if (!slot) return;
+
+    if (tooltipTitleEl) tooltipTitleEl.textContent = slot.name;
+    if (tooltipDescEl) tooltipDescEl.textContent = slot.desc;
+    renderMetaPills(slot);
+
+    tooltipEl.setAttribute("aria-hidden", "false");
+    tooltipEl.classList.add("is-on");
+    tooltipOpen = true;
+
+    const r = anchorEl.getBoundingClientRect();
+    positionTooltipDocked({ tooltipEl, anchorRect: r, padding: 8, gap: 8 });
+  }
+
+  function hideTooltip() {
+    tooltipEl.classList.remove("is-on");
+    tooltipEl.setAttribute("aria-hidden", "true");
+    tooltipOpen = false;
+  }
+
+  function updateSlotVisual(index) {
+    const slot = slots[index];
+    const btn = slotButtons[index];
+    if (!slot || !btn) return;
+
+    const hasC = slotHasCharges(slot);
+    btn.classList.toggle("has-charges", hasC);
+    btn._sr.charges.textContent = hasC ? `${slot.charges}/${slot.maxCharges}` : "";
+
+    const onCd = slotIsOnCooldown(slot);
+    btn.classList.toggle("is-cooldown", onCd);
+    btn.classList.toggle("is-disabled", !slotIsUsable(slot));
+
+    if (onCd) {
+      const remMs = Math.max(0, slot.cooldownEndMs - nowMs());
+      const rem = remMs / 1000;
+      btn._sr.cdText.textContent = String(Math.ceil(rem));
+
+      const dur = Math.max(0.001, slot.lastCooldownDurSec || slot.cooldownSec || 1);
+      const progress = Math.max(0, Math.min(1, rem / dur));
+      const angle = Math.round(360 * progress);
+      btn.style.setProperty("--cdAngle", `${angle}deg`);
+    } else {
+      btn._sr.cdText.textContent = "";
+      btn.style.setProperty("--cdAngle", `0deg`);
+    }
+  }
+
+  function updateAllVisuals() {
+    for (let i = 0; i < slots.length; i++) updateSlotVisual(i);
+    if (tooltipOpen) {
+      const btn = slotButtons[selectedIndex];
+      if (btn) showTooltipForIndex(selectedIndex, btn);
+    }
+  }
+
+  let tickTimer = null;
+
+  function anyCooldownActive() {
+    return slots.some(s => slotIsOnCooldown(s));
+  }
+
+  function ensureTicking() {
+    if (tickTimer) return;
+    tickTimer = window.setInterval(() => {
+      const t = nowMs();
+
+      for (const s of slots) {
+        if (s.cooldownEndMs > 0 && s.cooldownEndMs <= t) {
+          s.cooldownEndMs = 0;
+          if (s.rechargeOnCooldownEnd && s.maxCharges > 0) {
+            s.charges = Math.min(s.maxCharges, s.charges + 1);
+          }
+        }
+      }
+
+      updateAllVisuals();
+
+      if (!anyCooldownActive()) {
+        window.clearInterval(tickTimer);
+        tickTimer = null;
+      }
+    }, 80);
+  }
+
+  function tryActivate(index) {
+    const slot = slots[index];
+    if (!slot) return false;
+
+    if (!slotIsUsable(slot)) {
+      if (slotIsOnCooldown(slot)) onFail?.(`⛔ ${slot.name}: noch auf Cooldown.`);
+      else if (slotIsOutOfCharges(slot)) onFail?.(`⛔ ${slot.name}: keine Charges mehr.`);
+      else onFail?.(`⛔ ${slot.name}: nicht verfügbar.`);
+      return false;
+    }
+
+    if (slotHasCharges(slot)) slot.charges = Math.max(0, slot.charges - 1);
+
+    if (slot.cooldownSec > 0) {
+      slot.lastCooldownDurSec = slot.cooldownSec;
+      slot.cooldownEndMs = nowMs() + Math.round(slot.cooldownSec * 1000);
+      ensureTicking();
+    }
+
+    onActivate?.(slot);
+    updateAllVisuals();
+    return true;
+  }
+
+  function onPointerEnter(e) {
+    if (isTouchLikely()) return;
+    const btn = e.currentTarget;
+    const idx = slotButtons.indexOf(btn);
+    if (idx < 0) return;
+    setSelected(idx);
+    showTooltipForIndex(idx, btn);
+  }
+
+  function onPointerLeave() {
+    if (!isTouchLikely()) hideTooltip();
+  }
+
+  function onClick(e) {
+    const btn = e.currentTarget;
+    const idx = slotButtons.indexOf(btn);
+    if (idx < 0) return;
+
+    if (isTouchLikely()) {
+      if (!tooltipOpen || selectedIndex !== idx) {
+        setSelected(idx);
+        showTooltipForIndex(idx, btn);
+        return;
+      }
+      const ok = tryActivate(idx);
+      if (ok) hideTooltip();
+      else showTooltipForIndex(idx, btn);
+      return;
+    }
+
+    tryActivate(idx);
+  }
+
+  function onDocPointerDown(e) {
+    if (!isTouchLikely()) return;
+    if (!tooltipOpen) return;
+    const t = e.target;
+    const inside = wrapEl && wrapEl.contains(t);
+    if (!inside) hideTooltip();
+  }
+
+  function onKeyDown(e) {
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+
+    const k = e.key;
+    let idx = -1;
+    if (k >= "1" && k <= "9") idx = Number(k) - 1;
+    if (k === "0") idx = 9;
+
+    if (idx >= 0) {
+      e.preventDefault();
+      setSelected(idx);
+      const ok = tryActivate(idx);
+
+      if (!isTouchLikely()) {
+        const b = slotButtons[idx];
+        if (b) showTooltipForIndex(idx, b);
+        window.setTimeout(() => hideTooltip(), ok ? 700 : 1100);
+      }
+    }
+  }
+
+  function onWindowMove() {
+    if (!tooltipOpen) return;
+    const btn = slotButtons[selectedIndex];
+    if (btn) showTooltipForIndex(selectedIndex, btn);
+  }
+
+  slotButtons.forEach((btn) => {
+    btn.addEventListener("pointerenter", onPointerEnter);
+    btn.addEventListener("pointerleave", onPointerLeave);
+    btn.addEventListener("click", onClick);
+  });
+
+  document.addEventListener("pointerdown", onDocPointerDown);
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("resize", onWindowMove);
+  window.addEventListener("scroll", onWindowMove, true);
+
+  setSelected(0);
+  updateAllVisuals();
+
+  return () => {
+    slotButtons.forEach((btn) => {
+      btn.removeEventListener("pointerenter", onPointerEnter);
+      btn.removeEventListener("pointerleave", onPointerLeave);
+      btn.removeEventListener("click", onClick);
+    });
+
+    document.removeEventListener("pointerdown", onDocPointerDown);
+    window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("resize", onWindowMove);
+    window.removeEventListener("scroll", onWindowMove, true);
+
+    if (tickTimer) window.clearInterval(tickTimer);
+    tickTimer = null;
+
+    if (resizeObs) resizeObs.disconnect();
+    else window.removeEventListener("resize", applyAutoLayout);
+
+    if (originalTooltipParent && tooltipEl.parentElement !== originalTooltipParent) {
+      originalTooltipParent.appendChild(tooltipEl);
+    }
+  };
 }
