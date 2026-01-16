@@ -1,7 +1,5 @@
 /* ============================================================================
-   Shadowridge – UI (Hotbar + Cooldown/Charges + Mobile Tooltip Fix)
-   - Tooltip auf Mobile als Info-Block oberhalb der Slots (verdeckt nichts)
-   - Tooltip schöner formatiert (Pills/Badges)
+   Shadowridge – UI (Hotbar Layout Toggle + Tooltip Docking)
    ========================================================================== */
 
 :root{
@@ -194,6 +192,11 @@ body{
   background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,0));
 }
 
+/* Kompakter Titlebar (Hotbar) */
+.hudPanel__titlebar--compact{
+  padding:6px 10px;
+}
+
 .hudPanel__title{
   font-family:"Cinzel", serif;
   font-weight:700;
@@ -236,6 +239,11 @@ body{
   overflow:auto;
   color: var(--muted);
   font-size:12px;
+}
+
+/* Hotbar hat kompaktere Titlebar -> Body-Höhe anpassen */
+.hudPanel--hotbar .hudPanel__body{
+  height: calc(100% - 36px);
 }
 
 .logBody{ font-size:12px; }
@@ -306,27 +314,35 @@ body{
 /* --- HOTBAR -------------------------------------------------------------- */
 .hotbarBody{
   position:relative;
-  overflow:visible;
+  overflow:visible; /* Tooltip kann “drüber” ohne abgeschnitten zu werden (mobile) */
 }
 
 .hotbarWrap{
   position:relative;
-  padding:6px 4px 8px 4px;
+  padding:6px 6px 8px 6px;
   border:1px solid rgba(210,162,74,.18);
   border-radius:14px;
   background: rgba(0,0,0,.18);
 }
 
+/* Layout-Modi */
 .hotbarSlots{
   display:grid;
-  grid-template-columns: repeat(10, 1fr);
   gap:8px;
   align-items:stretch;
 }
+.hotbarSlots.is-row10{
+  grid-template-columns: repeat(10, 1fr);
+}
+.hotbarSlots.is-grid2x5{
+  grid-template-columns: repeat(5, 1fr);
+}
 
+/* Slot ist immer quadratisch */
 .hotbarSlot{
   position:relative;
-  height:52px;
+  aspect-ratio: 1 / 1;
+  width:100%;
   border-radius:14px;
   border:1px solid rgba(210,162,74,.28);
   background:
@@ -351,7 +367,6 @@ body{
     inset 0 -1px 0 rgba(0,0,0,.55);
 }
 
-/* Disabled feel (cooldown or 0 charges) */
 .hotbarSlot.is-disabled{
   opacity: .65;
   filter: saturate(.85);
@@ -361,17 +376,18 @@ body{
   cursor: not-allowed;
 }
 
+/* Labels skalieren mit Slotgröße */
 .hotbarKey{
   position:absolute;
-  left:8px;
-  top:6px;
+  left:7%;
+  top:7%;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size:10px;
+  font-size: clamp(9px, 1.2vw, 11px);
   color: rgba(242,234,215,.80);
   background: rgba(0,0,0,.28);
   border:1px solid rgba(255,255,255,.12);
-  border-radius:8px;
-  padding:1px 5px;
+  border-radius:999px;
+  padding:1px 6px;
 }
 
 .hotbarIcon{
@@ -382,9 +398,9 @@ body{
 }
 .hotbarIcon::before{
   content:"";
-  width:22px;
-  height:22px;
-  border-radius:8px;
+  width:45%;
+  height:45%;
+  border-radius:10px;
   border:1px solid rgba(255,255,255,.12);
   background: rgba(210,162,74,.14);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
@@ -428,7 +444,7 @@ body{
   border-color: rgba(255,210,120,.32);
 }
 
-/* --- Cooldown overlay ---------------------------------------------------- */
+/* Cooldown overlay */
 .hotbarOverlay{
   position:absolute;
   inset:0;
@@ -444,7 +460,7 @@ body{
 }
 .hotbarCooldownRing{
   position:absolute;
-  inset:6px;
+  inset:10%;
   border-radius:12px;
   background:
     conic-gradient(
@@ -455,7 +471,7 @@ body{
 }
 .hotbarCooldownInner{
   position:absolute;
-  inset:9px;
+  inset:14%;
   border-radius:10px;
   background: rgba(0,0,0,.38);
 }
@@ -466,27 +482,27 @@ body{
   place-items:center;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-weight:700;
-  font-size:14px;
+  font-size: clamp(12px, 1.4vw, 16px);
   color: rgba(242,234,215,.92);
   text-shadow: 0 2px 0 rgba(0,0,0,.55);
 }
 .hotbarSlot.is-cooldown .hotbarOverlay{ display:block; }
 
-/* --- Charges badge ------------------------------------------------------- */
+/* Charges badge */
 .hotbarCharges{
   position:absolute;
-  right:7px;
-  bottom:7px;
+  right:7%;
+  bottom:7%;
   min-width: 22px;
   height: 18px;
   padding: 0 6px;
-  border-radius: 10px;
+  border-radius: 999px;
   display:none;
   align-items:center;
   justify-content:center;
 
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size:10px;
+  font-size: clamp(9px, 1.2vw, 11px);
   color: rgba(242,234,215,.90);
 
   background: rgba(0,0,0,.35);
@@ -494,9 +510,9 @@ body{
 }
 .hotbarSlot.has-charges .hotbarCharges{ display:flex; }
 
-/* --- Tooltip (Desktop Overlay) ------------------------------------------ */
+/* Tooltip (Desktop = fixed, wird in body geportalt) */
 .hotbarTooltip{
-  position:absolute;
+  position:fixed;
   min-width: 220px;
   max-width: 340px;
   padding:10px 12px;
@@ -508,7 +524,7 @@ body{
   opacity:0;
   transform: translate3d(0, 6px, 0);
   transition: opacity .08s linear, transform .08s ease;
-  z-index: 50;
+  z-index: 9999;
 }
 .hotbarTooltip.is-on{
   opacity:1;
@@ -526,14 +542,11 @@ body{
   font-size:12px;
   margin-bottom:8px;
 }
-
-/* Schöner: Meta als Pills */
 .hotbarTooltip__meta{
   display:flex;
   flex-wrap:wrap;
   gap:6px;
 }
-
 .hotbarPill{
   display:inline-flex;
   align-items:center;
@@ -562,9 +575,9 @@ body{
   background: rgba(140,170,190,.10);
 }
 
-.hotbarHint{
-  margin-top:8px;
-  font-size:12px;
+/* Hint: am Desktop optional ausblenden, spart Platz */
+@media (min-width: 981px){
+  .hotbarHint{ display:none; }
 }
 
 /* --- Desktop Overlay Mode ---------------------------------------------- */
@@ -676,18 +689,11 @@ body{
   .hudPanel.is-mobile-open .hudPanel__titlebar{ cursor: default; }
 
   .dockGuides{ display:none; }
-
-  .hotbarSlots{ gap:10px; }
-  .hotbarSlot{ height:58px; }
 }
 
 .muted{ color: var(--muted); }
 
-/* ============================================================================
-   WICHTIG: Touch/Coarse Pointer Tooltip Fix
-   - Tooltip wird "inline" (nicht mehr absolut über den Slots)
-   - Tooltip erscheint als Info-Block oberhalb der Slot-Reihe
-   ========================================================================== */
+/* Touch/Coarse Pointer: Tooltip als Inline-Info (nicht fixed) */
 @media (pointer: coarse){
   .hotbarWrap{
     display:flex;
@@ -695,15 +701,13 @@ body{
     gap:10px;
   }
 
-  /* Tooltip in der Reihenfolge VOR Slots anzeigen */
   .hotbarTooltip{
     position:relative;
     left:auto !important;
     top:auto !important;
     width:100%;
     max-width:none;
-
-    pointer-events:auto; /* Tap zum Lesen ok */
+    pointer-events:auto;
     transform:none;
     transition: opacity .08s linear;
     margin: 2px 2px 0 2px;
@@ -712,7 +716,6 @@ body{
   .hotbarSlots{ order: 2; }
   .hotbarTooltip{ order: 1; }
 
-  /* Wenn Tooltip aus ist, nimmt er keinen Platz weg */
   .hotbarTooltip:not(.is-on){
     display:none;
   }
