@@ -9,11 +9,11 @@
  *    - Mobile (touch): Tooltip als Info-Block oberhalb der Slots (verdeckt nichts)
  * - Cooldown Overlay (Ring + Zahl)
  * - Charges Badge (x/y)
+ *
+ * Daten kommen aus: ./hotbarData.js
  */
 
-function keyFromIndex(i) {
-  return i === 9 ? "0" : String(i + 1);
-}
+import { buildDemoHotbarSlots } from "./hotbarData.js";
 
 function isTouchLikely() {
   return window.matchMedia("(pointer: coarse)").matches;
@@ -117,42 +117,13 @@ export function setupHotbar({
 
   const wrapEl = slotsEl.closest(".hotbarWrap") || slotsEl.parentElement;
 
-  const slots = Array.from({ length: 10 }, (_, i) => {
-    const key = keyFromIndex(i);
-
-    const samples = [
-      { name: "Hieb", icon: "sword",  desc: "Ein schneller Nahkampfangriff.", meta: "AP 1 • Physisch", cd: 2.5, maxCharges: 0, recharge: false },
-      { name: "Schildwall", icon: "shield", desc: "Kurzzeitig mehr Schutz.", meta: "AP 1 • Defensiv", cd: 6.0, maxCharges: 0, recharge: false },
-      { name: "Trank", icon: "potion", desc: "Heilt eine kleine Menge.", meta: "Item", cd: 8.0, maxCharges: 2, recharge: false },
-      { name: "Funke", icon: "spell",  desc: "Ein kleiner arkaner Stoß.", meta: "AP 2 • Magie", cd: 4.0, maxCharges: 3, recharge: true },
-      { name: "Sprint", icon: "boot",   desc: "Bewegung erhöht für kurze Zeit.", meta: "AP 1 • Buff", cd: 5.0, maxCharges: 0, recharge: false },
-      { name: "Laterne", icon: "lantern", desc: "Licht an/aus – beeinflusst Sicht.", meta: "Toggle", cd: 0.0, maxCharges: 0, recharge: false },
-    ];
-
-    const s = samples[i % samples.length];
-
-    return {
-      id: `slot-${i}`,
-      index: i,
-      key,
-      name: s.name,
-      desc: s.desc,
-      baseMeta: s.meta,
-      icon: s.icon,
-
-      cooldownSec: s.cd,
-      cooldownEndMs: 0,
-      lastCooldownDurSec: 0,
-
-      maxCharges: s.maxCharges,
-      charges: s.maxCharges > 0 ? s.maxCharges : 0,
-      rechargeOnCooldownEnd: s.recharge,
-    };
-  });
+  // ✅ Daten kommen jetzt aus eigener Datei (modular)
+  const slots = buildDemoHotbarSlots();
 
   let selectedIndex = 0;
   let tooltipOpen = false;
 
+  // Render Slots
   slotsEl.innerHTML = "";
   const slotButtons = slots.map((slot) => {
     const btn = createSlotButton(slot);
@@ -188,18 +159,14 @@ export function setupHotbar({
   function buildMetaPills(slot) {
     const pills = [];
 
-    // Taste
     pills.push({ text: `Taste ${slot.key}`, cls: "" });
 
-    // Grund-Meta
     if (slot.baseMeta) pills.push({ text: slot.baseMeta, cls: "" });
 
-    // Charges
     if (slotHasCharges(slot)) {
       pills.push({ text: `Charges ${slot.charges}/${slot.maxCharges}`, cls: "hotbarPill--charges" });
     }
 
-    // Cooldown
     if (slot.cooldownSec > 0) {
       if (slotIsOnCooldown(slot)) {
         const rem = Math.max(0, slot.cooldownEndMs - nowMs()) / 1000;
@@ -209,7 +176,6 @@ export function setupHotbar({
       }
     }
 
-    // Status
     if (!slotIsUsable(slot)) {
       if (slotIsOnCooldown(slot)) pills.push({ text: "⛔ On Cooldown", cls: "hotbarPill--bad" });
       if (slotIsOutOfCharges(slot)) pills.push({ text: "⛔ Keine Charges", cls: "hotbarPill--bad" });
@@ -241,12 +207,11 @@ export function setupHotbar({
     tooltipOpen = true;
 
     // Desktop: positionieren nahe Slot
-    // Mobile: nicht positionieren -> CSS macht "inline block oberhalb Slots"
+    // Mobile: "inline" (CSS), also keine absolute Position
     if (!isTouchLikely() && wrapEl && anchorEl) {
       const r = anchorEl.getBoundingClientRect();
       positionTooltipWithinWrap({ tooltipEl, wrapEl, anchorRect: r });
     } else {
-      // Mobile: sicherstellen, dass wir keine alten left/top Werte behalten
       tooltipEl.style.left = "";
       tooltipEl.style.top = "";
     }
@@ -311,6 +276,8 @@ export function setupHotbar({
       for (const s of slots) {
         if (s.cooldownEndMs > 0 && s.cooldownEndMs <= t) {
           s.cooldownEndMs = 0;
+
+          // Demo: am Cooldown-Ende 1 Charge zurück
           if (s.rechargeOnCooldownEnd && s.maxCharges > 0) {
             s.charges = Math.min(s.maxCharges, s.charges + 1);
           }
@@ -350,6 +317,7 @@ export function setupHotbar({
     return true;
   }
 
+  // Desktop Hover
   function onPointerEnter(e) {
     const btn = e.currentTarget;
     const idx = slotButtons.indexOf(btn);
@@ -362,6 +330,7 @@ export function setupHotbar({
     if (!isTouchLikely()) hideTooltip();
   }
 
+  // Click / Tap
   function onClick(e) {
     const btn = e.currentTarget;
     const idx = slotButtons.indexOf(btn);
@@ -375,16 +344,18 @@ export function setupHotbar({
         return;
       }
 
-      // 2. Tap -> Activate attempt
+      // 2. Tap -> Activate
       const ok = tryActivate(idx);
       if (ok) hideTooltip();
       else showTooltipForIndex(idx, btn);
       return;
     }
 
+    // Desktop: sofort aktivieren
     tryActivate(idx);
   }
 
+  // Outside closes tooltip (Mobile)
   function onDocPointerDown(e) {
     if (!isTouchLikely()) return;
     if (!tooltipOpen) return;
@@ -394,6 +365,7 @@ export function setupHotbar({
     if (!insideHotbar) hideTooltip();
   }
 
+  // Keyboard 1..0
   function onKeyDown(e) {
     const tag = document.activeElement?.tagName?.toLowerCase();
     if (tag === "input" || tag === "textarea") return;
@@ -417,6 +389,7 @@ export function setupHotbar({
     }
   }
 
+  // Wire
   slotButtons.forEach((btn) => {
     btn.addEventListener("pointerenter", onPointerEnter);
     btn.addEventListener("pointerleave", onPointerLeave);
