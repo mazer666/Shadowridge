@@ -1,16 +1,14 @@
 /**
  * src/ui/hotbar.js
  * -----------------------------------------------------------------------------
- * BG3-like Hotbar:
+ * Hotbar (BG3-ish):
  * - 10 Slots (Keys 1..0)
  * - CSS-only Icons
- * - Tooltips (Hover desktop, Tap mobile)
- * - (NEU) Cooldown Overlay (Ring + Zahl) + Charges Badge (x/y)
- *
- * Verhalten:
- * - Wenn Slot cooldown aktiv -> nicht aktivierbar
- * - Wenn Slot charges hat und charges=0 -> nicht aktivierbar
- * - Tap mobile: 1. Tap Tooltip, 2. Tap aktiviert (oder zeigt Fail-Grund)
+ * - Tooltips:
+ *    - Desktop (mouse): Tooltip als Overlay nahe Slot
+ *    - Mobile (touch): Tooltip als Info-Block oberhalb der Slots (verdeckt nichts)
+ * - Cooldown Overlay (Ring + Zahl)
+ * - Charges Badge (x/y)
  */
 
 function keyFromIndex(i) {
@@ -19,6 +17,15 @@ function keyFromIndex(i) {
 
 function isTouchLikely() {
   return window.matchMedia("(pointer: coarse)").matches;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function positionTooltipWithinWrap({ tooltipEl, wrapEl, anchorRect }) {
@@ -40,9 +47,6 @@ function positionTooltipWithinWrap({ tooltipEl, wrapEl, anchorRect }) {
   tooltipEl.style.top = `${Math.round(y)}px`;
 }
 
-/**
- * Slot DOM komplett bauen (inkl. overlay + charges badge).
- */
 function createSlotButton(slot) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -60,7 +64,6 @@ function createSlotButton(slot) {
   icon.className = "hotbarIcon";
   icon.setAttribute("aria-hidden", "true");
 
-  // Cooldown overlay (Ring + Shade + Text)
   const overlay = document.createElement("div");
   overlay.className = "hotbarOverlay";
   overlay.setAttribute("aria-hidden", "true");
@@ -83,7 +86,6 @@ function createSlotButton(slot) {
   overlay.appendChild(inner);
   overlay.appendChild(cdText);
 
-  // Charges badge
   const charges = document.createElement("div");
   charges.className = "hotbarCharges";
   charges.textContent = "";
@@ -93,7 +95,6 @@ function createSlotButton(slot) {
   btn.appendChild(overlay);
   btn.appendChild(charges);
 
-  // Referenzen merken (so müssen wir später nicht querySelectorn)
   btn._sr = { overlay, ring, cdText, charges };
 
   return btn;
@@ -116,10 +117,6 @@ export function setupHotbar({
 
   const wrapEl = slotsEl.closest(".hotbarWrap") || slotsEl.parentElement;
 
-  // Demo-Slots:
-  // - Einige haben Cooldown
-  // - Einige haben Charges
-  // - Potion hat Charges aber (für Demo) keine Auto-Recharge
   const slots = Array.from({ length: 10 }, (_, i) => {
     const key = keyFromIndex(i);
 
@@ -143,21 +140,19 @@ export function setupHotbar({
       baseMeta: s.meta,
       icon: s.icon,
 
-      cooldownSec: s.cd,          // 0 = kein cooldown
-      cooldownEndMs: 0,           // timestamp wenn cooldown läuft
-      lastCooldownDurSec: 0,      // merkt die Dauer für progress
+      cooldownSec: s.cd,
+      cooldownEndMs: 0,
+      lastCooldownDurSec: 0,
 
-      maxCharges: s.maxCharges,   // 0 = keine charges
+      maxCharges: s.maxCharges,
       charges: s.maxCharges > 0 ? s.maxCharges : 0,
-      rechargeOnCooldownEnd: s.recharge, // für Demo: Funke lädt nach Cooldown wieder 1 Charge nach
+      rechargeOnCooldownEnd: s.recharge,
     };
   });
 
-  // UI state
   let selectedIndex = 0;
   let tooltipOpen = false;
 
-  // Render Slots
   slotsEl.innerHTML = "";
   const slotButtons = slots.map((slot) => {
     const btn = createSlotButton(slot);
@@ -190,31 +185,47 @@ export function setupHotbar({
     return true;
   }
 
-  function formatMeta(slot) {
-    const parts = [];
-    parts.push(`Taste ${slot.key}`);
-    if (slot.baseMeta) parts.push(slot.baseMeta);
+  function buildMetaPills(slot) {
+    const pills = [];
+
+    // Taste
+    pills.push({ text: `Taste ${slot.key}`, cls: "" });
+
+    // Grund-Meta
+    if (slot.baseMeta) pills.push({ text: slot.baseMeta, cls: "" });
 
     // Charges
-    if (slotHasCharges(slot)) parts.push(`Charges ${slot.charges}/${slot.maxCharges}`);
+    if (slotHasCharges(slot)) {
+      pills.push({ text: `Charges ${slot.charges}/${slot.maxCharges}`, cls: "hotbarPill--charges" });
+    }
 
     // Cooldown
     if (slot.cooldownSec > 0) {
       if (slotIsOnCooldown(slot)) {
         const rem = Math.max(0, slot.cooldownEndMs - nowMs()) / 1000;
-        parts.push(`CD ${Math.ceil(rem)}s`);
+        pills.push({ text: `Cooldown ${Math.ceil(rem)}s`, cls: "hotbarPill--cd" });
       } else {
-        parts.push(`CD ${slot.cooldownSec}s`);
+        pills.push({ text: `Cooldown ${slot.cooldownSec}s`, cls: "hotbarPill--cd" });
       }
     }
 
-    // Usability hint
+    // Status
     if (!slotIsUsable(slot)) {
-      if (slotIsOnCooldown(slot)) parts.push("⛔ Cooldown");
-      if (slotIsOutOfCharges(slot)) parts.push("⛔ Keine Charges");
+      if (slotIsOnCooldown(slot)) pills.push({ text: "⛔ On Cooldown", cls: "hotbarPill--bad" });
+      if (slotIsOutOfCharges(slot)) pills.push({ text: "⛔ Keine Charges", cls: "hotbarPill--bad" });
     }
 
-    return parts.join(" • ");
+    return pills;
+  }
+
+  function renderMetaPills(slot) {
+    if (!tooltipMetaEl) return;
+    const pills = buildMetaPills(slot);
+
+    tooltipMetaEl.innerHTML = pills.map(p => {
+      const cls = `hotbarPill ${p.cls || ""}`.trim();
+      return `<span class="${cls}"><strong>•</strong> ${escapeHtml(p.text)}</span>`;
+    }).join("");
   }
 
   function showTooltipForIndex(index, anchorEl) {
@@ -223,17 +234,22 @@ export function setupHotbar({
 
     if (tooltipTitleEl) tooltipTitleEl.textContent = slot.name;
     if (tooltipDescEl) tooltipDescEl.textContent = slot.desc;
-    if (tooltipMetaEl) tooltipMetaEl.textContent = formatMeta(slot);
+    renderMetaPills(slot);
 
     tooltipEl.setAttribute("aria-hidden", "false");
-
-    if (wrapEl && anchorEl) {
-      const r = anchorEl.getBoundingClientRect();
-      positionTooltipWithinWrap({ tooltipEl, wrapEl, anchorRect: r });
-    }
-
     tooltipEl.classList.add("is-on");
     tooltipOpen = true;
+
+    // Desktop: positionieren nahe Slot
+    // Mobile: nicht positionieren -> CSS macht "inline block oberhalb Slots"
+    if (!isTouchLikely() && wrapEl && anchorEl) {
+      const r = anchorEl.getBoundingClientRect();
+      positionTooltipWithinWrap({ tooltipEl, wrapEl, anchorRect: r });
+    } else {
+      // Mobile: sicherstellen, dass wir keine alten left/top Werte behalten
+      tooltipEl.style.left = "";
+      tooltipEl.style.top = "";
+    }
   }
 
   function hideTooltip() {
@@ -242,29 +258,18 @@ export function setupHotbar({
     tooltipOpen = false;
   }
 
-  /**
-   * UI aktualisieren (cooldown ring, text, charges badge, disabled class)
-   */
   function updateSlotVisual(index) {
     const slot = slots[index];
     const btn = slotButtons[index];
     if (!slot || !btn) return;
 
-    // Charges badge
     const hasC = slotHasCharges(slot);
     btn.classList.toggle("has-charges", hasC);
+    if (hasC) btn._sr.charges.textContent = `${slot.charges}/${slot.maxCharges}`;
+    else btn._sr.charges.textContent = "";
 
-    if (hasC) {
-      btn._sr.charges.textContent = `${slot.charges}/${slot.maxCharges}`;
-    } else {
-      btn._sr.charges.textContent = "";
-    }
-
-    // Cooldown visuals
     const onCd = slotIsOnCooldown(slot);
     btn.classList.toggle("is-cooldown", onCd);
-
-    // Disabled state (cooldown OR 0 charges)
     btn.classList.toggle("is-disabled", !slotIsUsable(slot));
 
     if (onCd) {
@@ -273,9 +278,8 @@ export function setupHotbar({
       btn._sr.cdText.textContent = String(Math.ceil(rem));
 
       const dur = Math.max(0.001, slot.lastCooldownDurSec || slot.cooldownSec || 1);
-      const progress = clamp(rem / dur, 0, 1); // 1..0
+      const progress = Math.max(0, Math.min(1, rem / dur)); // 1..0
       const angle = Math.round(360 * progress);
-      // gold segment zeigt “remaining”
       btn.style.setProperty("--cdAngle", `${angle}deg`);
     } else {
       btn._sr.cdText.textContent = "";
@@ -285,7 +289,7 @@ export function setupHotbar({
 
   function updateAllVisuals() {
     for (let i = 0; i < slots.length; i++) updateSlotVisual(i);
-    // Tooltip Meta live aktualisieren (CD runterzählen), falls offen
+
     if (tooltipOpen) {
       const idx = selectedIndex;
       const btn = slotButtons[idx];
@@ -293,9 +297,6 @@ export function setupHotbar({
     }
   }
 
-  /**
-   * Cooldown “Tick” (nur wenn nötig)
-   */
   let tickTimer = null;
 
   function anyCooldownActive() {
@@ -305,15 +306,11 @@ export function setupHotbar({
   function ensureTicking() {
     if (tickTimer) return;
     tickTimer = window.setInterval(() => {
-      // Cooldowns ablaufen lassen + ggf. Charges recharge
       const t = nowMs();
 
       for (const s of slots) {
         if (s.cooldownEndMs > 0 && s.cooldownEndMs <= t) {
-          // Cooldown endet genau jetzt
           s.cooldownEndMs = 0;
-
-          // Optional: pro Cooldown-Ende 1 Charge zurück (Demo für “Funke”)
           if (s.rechargeOnCooldownEnd && s.maxCharges > 0) {
             s.charges = Math.min(s.maxCharges, s.charges + 1);
           }
@@ -322,7 +319,6 @@ export function setupHotbar({
 
       updateAllVisuals();
 
-      // wenn nichts mehr läuft, stoppen (Performance)
       if (!anyCooldownActive()) {
         window.clearInterval(tickTimer);
         tickTimer = null;
@@ -330,27 +326,19 @@ export function setupHotbar({
     }, 80);
   }
 
-  /**
-   * Aktivierung: setzt cooldown, zieht charges ab
-   */
   function tryActivate(index) {
     const slot = slots[index];
     if (!slot) return false;
 
     if (!slotIsUsable(slot)) {
-      // Fail message
       if (slotIsOnCooldown(slot)) onFail?.(`⛔ ${slot.name}: noch auf Cooldown.`);
       else if (slotIsOutOfCharges(slot)) onFail?.(`⛔ ${slot.name}: keine Charges mehr.`);
       else onFail?.(`⛔ ${slot.name}: nicht verfügbar.`);
       return false;
     }
 
-    // Charges verbrauchen
-    if (slotHasCharges(slot)) {
-      slot.charges = Math.max(0, slot.charges - 1);
-    }
+    if (slotHasCharges(slot)) slot.charges = Math.max(0, slot.charges - 1);
 
-    // Cooldown starten
     if (slot.cooldownSec > 0) {
       slot.lastCooldownDurSec = slot.cooldownSec;
       slot.cooldownEndMs = nowMs() + Math.round(slot.cooldownSec * 1000);
@@ -362,7 +350,6 @@ export function setupHotbar({
     return true;
   }
 
-  // Desktop: Hover
   function onPointerEnter(e) {
     const btn = e.currentTarget;
     const idx = slotButtons.indexOf(btn);
@@ -370,11 +357,11 @@ export function setupHotbar({
     setSelected(idx);
     showTooltipForIndex(idx, btn);
   }
+
   function onPointerLeave() {
     if (!isTouchLikely()) hideTooltip();
   }
 
-  // Click / Tap
   function onClick(e) {
     const btn = e.currentTarget;
     const idx = slotButtons.indexOf(btn);
@@ -390,17 +377,14 @@ export function setupHotbar({
 
       // 2. Tap -> Activate attempt
       const ok = tryActivate(idx);
-      // wenn ok: Tooltip weg (BG3-Feeling: du “castest” und machst weiter)
       if (ok) hideTooltip();
       else showTooltipForIndex(idx, btn);
       return;
     }
 
-    // Desktop: Klick aktiviert sofort
     tryActivate(idx);
   }
 
-  // Outside click closes tooltip (Mobile)
   function onDocPointerDown(e) {
     if (!isTouchLikely()) return;
     if (!tooltipOpen) return;
@@ -410,7 +394,6 @@ export function setupHotbar({
     if (!insideHotbar) hideTooltip();
   }
 
-  // Keyboard 1..0
   function onKeyDown(e) {
     const tag = document.activeElement?.tagName?.toLowerCase();
     if (tag === "input" || tag === "textarea") return;
@@ -426,7 +409,6 @@ export function setupHotbar({
 
       const ok = tryActivate(idx);
 
-      // Tooltip kurz zeigen (Desktop)
       if (!isTouchLikely()) {
         const b = slotButtons[idx];
         if (b) showTooltipForIndex(idx, b);
@@ -435,7 +417,6 @@ export function setupHotbar({
     }
   }
 
-  // Wire Events
   slotButtons.forEach((btn) => {
     btn.addEventListener("pointerenter", onPointerEnter);
     btn.addEventListener("pointerleave", onPointerLeave);
@@ -445,7 +426,6 @@ export function setupHotbar({
   document.addEventListener("pointerdown", onDocPointerDown);
   window.addEventListener("keydown", onKeyDown);
 
-  // Initial
   setSelected(0);
   updateAllVisuals();
 

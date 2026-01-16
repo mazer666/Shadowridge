@@ -1,9 +1,7 @@
 /* ============================================================================
-   Shadowridge – UI (B2 Hotbar + Cooldown/Charges)
-   - BG3-ish Panels
-   - Docking Guides
-   - Hotbar: Slots + CSS Icons + Tooltips
-   - (NEU) Cooldown Ring + Timer + Charges Badge
+   Shadowridge – UI (Hotbar + Cooldown/Charges + Mobile Tooltip Fix)
+   - Tooltip auf Mobile als Info-Block oberhalb der Slots (verdeckt nichts)
+   - Tooltip schöner formatiert (Pills/Badges)
    ========================================================================== */
 
 :root{
@@ -326,7 +324,6 @@ body{
   align-items:stretch;
 }
 
-/* Slot */
 .hotbarSlot{
   position:relative;
   height:52px;
@@ -344,9 +341,7 @@ body{
   touch-action: manipulation;
 }
 
-.hotbarSlot:hover{
-  border-color: rgba(210,162,74,.48);
-}
+.hotbarSlot:hover{ border-color: rgba(210,162,74,.48); }
 
 .hotbarSlot.is-selected{
   border-color: rgba(210,162,74,.70);
@@ -379,7 +374,6 @@ body{
   padding:1px 5px;
 }
 
-/* “Icon” Fläche */
 .hotbarIcon{
   position:absolute;
   inset:0;
@@ -440,18 +434,14 @@ body{
   inset:0;
   border-radius:14px;
   pointer-events:none;
-  display:none; /* nur bei cooldown sichtbar */
+  display:none;
 }
-
-/* Dunkler “Lock” */
 .hotbarCooldownShade{
   position:absolute;
   inset:0;
   border-radius:14px;
   background: rgba(0,0,0,.42);
 }
-
-/* Ring: conic-gradient mit CSS Variable --cdAngle */
 .hotbarCooldownRing{
   position:absolute;
   inset:6px;
@@ -463,16 +453,12 @@ body{
     );
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.55));
 }
-
-/* Innerer “Cutout”, damit es wie ein Ring wirkt */
 .hotbarCooldownInner{
   position:absolute;
   inset:9px;
   border-radius:10px;
   background: rgba(0,0,0,.38);
 }
-
-/* Zahl */
 .hotbarCooldownText{
   position:absolute;
   inset:0;
@@ -484,11 +470,7 @@ body{
   color: rgba(242,234,215,.92);
   text-shadow: 0 2px 0 rgba(0,0,0,.55);
 }
-
-/* Wenn Slot cooldown hat */
-.hotbarSlot.is-cooldown .hotbarOverlay{
-  display:block;
-}
+.hotbarSlot.is-cooldown .hotbarOverlay{ display:block; }
 
 /* --- Charges badge ------------------------------------------------------- */
 .hotbarCharges{
@@ -499,7 +481,7 @@ body{
   height: 18px;
   padding: 0 6px;
   border-radius: 10px;
-  display:none; /* nur wenn sinnvoll */
+  display:none;
   align-items:center;
   justify-content:center;
 
@@ -510,21 +492,17 @@ body{
   background: rgba(0,0,0,.35);
   border:1px solid rgba(255,255,255,.12);
 }
+.hotbarSlot.has-charges .hotbarCharges{ display:flex; }
 
-.hotbarSlot.has-charges .hotbarCharges{
-  display:flex;
-}
-
-/* Tooltip */
+/* --- Tooltip (Desktop Overlay) ------------------------------------------ */
 .hotbarTooltip{
   position:absolute;
   min-width: 220px;
-  max-width: 320px;
+  max-width: 340px;
   padding:10px 12px;
   border-radius:14px;
   border:1px solid rgba(210,162,74,.35);
-  background:
-    linear-gradient(180deg, rgba(20,16,12,.95), rgba(10,8,6,.92));
+  background: linear-gradient(180deg, rgba(20,16,12,.95), rgba(10,8,6,.92));
   box-shadow: 0 18px 45px rgba(0,0,0,.55);
   pointer-events:none;
   opacity:0;
@@ -546,15 +524,44 @@ body{
 .hotbarTooltip__desc{
   color: var(--muted);
   font-size:12px;
-  margin-bottom:6px;
+  margin-bottom:8px;
 }
+
+/* Schöner: Meta als Pills */
 .hotbarTooltip__meta{
-  font-size:11px;
-  color: rgba(242,234,215,.72);
   display:flex;
-  gap:10px;
   flex-wrap:wrap;
+  gap:6px;
 }
+
+.hotbarPill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.22);
+  color: rgba(242,234,215,.82);
+  font-size:11px;
+}
+.hotbarPill strong{
+  color: rgba(242,234,215,.92);
+  font-weight:700;
+}
+.hotbarPill--bad{
+  border-color: rgba(200,75,75,.35);
+  background: rgba(200,75,75,.10);
+}
+.hotbarPill--cd{
+  border-color: rgba(210,162,74,.30);
+  background: rgba(210,162,74,.10);
+}
+.hotbarPill--charges{
+  border-color: rgba(140,170,190,.30);
+  background: rgba(140,170,190,.10);
+}
+
 .hotbarHint{
   margin-top:8px;
   font-size:12px;
@@ -589,7 +596,6 @@ body{
 
   .canvasWrap{ height: 58vh; }
 
-  /* Mobile: HUD muss klickbar sein, wenn Panel geöffnet */
   .hud{
     position:absolute;
     left:0; top:0; right:0; bottom:0;
@@ -671,9 +677,43 @@ body{
 
   .dockGuides{ display:none; }
 
-  /* Mobile: Slots etwas größer */
   .hotbarSlots{ gap:10px; }
   .hotbarSlot{ height:58px; }
 }
 
 .muted{ color: var(--muted); }
+
+/* ============================================================================
+   WICHTIG: Touch/Coarse Pointer Tooltip Fix
+   - Tooltip wird "inline" (nicht mehr absolut über den Slots)
+   - Tooltip erscheint als Info-Block oberhalb der Slot-Reihe
+   ========================================================================== */
+@media (pointer: coarse){
+  .hotbarWrap{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  /* Tooltip in der Reihenfolge VOR Slots anzeigen */
+  .hotbarTooltip{
+    position:relative;
+    left:auto !important;
+    top:auto !important;
+    width:100%;
+    max-width:none;
+
+    pointer-events:auto; /* Tap zum Lesen ok */
+    transform:none;
+    transition: opacity .08s linear;
+    margin: 2px 2px 0 2px;
+  }
+
+  .hotbarSlots{ order: 2; }
+  .hotbarTooltip{ order: 1; }
+
+  /* Wenn Tooltip aus ist, nimmt er keinen Platz weg */
+  .hotbarTooltip:not(.is-on){
+    display:none;
+  }
+}
