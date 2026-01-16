@@ -420,4 +420,46 @@ export function setupPanels({ hudEl, boundsEl, mobileTabsEl, mobileOverlayEl, mo
   window.addEventListener("resize", normalizeIntoBounds);
   normalizeIntoBounds();
 
-  if (mob
+  if (mobileTabsEl) {
+    mobileTabsEl.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-open-panel]");
+      if (!btn) return;
+      openMobilePanel(btn.getAttribute("data-open-panel"));
+    });
+  }
+
+  if (mobileCloseEl) {
+    mobileCloseEl.addEventListener("click", () => closeMobilePanel());
+  }
+
+  if (mobileOverlayEl) {
+    mobileOverlayEl.addEventListener("click", (e) => {
+      if (e.target === mobileOverlayEl) closeMobilePanel();
+    });
+
+    mobileOverlayEl.addEventListener("pointerdown", (e) => {
+      if (e.target === mobileOverlayEl) e.preventDefault();
+    }, { passive: false });
+  }
+
+  const mqDesktop = window.matchMedia("(min-width: 981px)");
+  const onModeChange = () => {
+    closeMobilePanel();
+
+    const hasSaved = panels.some(p => layout[p.dataset.panelId]);
+    if (mqDesktop.matches && !hasSaved) {
+      applyDefaultLayout(panels, boundsEl, layout, zCounter);
+      saveLayout(layout);
+      zCounter = layout.__zCounter || (zCounter + 10);
+    }
+
+    normalizeIntoBounds();
+  };
+
+  mqDesktop.addEventListener?.("change", onModeChange);
+
+  return () => {
+    window.removeEventListener("resize", normalizeIntoBounds);
+    mqDesktop.removeEventListener?.("change", onModeChange);
+  };
+}
