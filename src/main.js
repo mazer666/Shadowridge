@@ -8,8 +8,7 @@
  * - MapCanvas Rendering
  * - Log
  * - HUD Panels (Desktop: Drag/Resize + Docking; Mobile: Fullscreen Menüs)
- * - Hotbar Slots + Tooltips
- * - (NEU) Cooldown/Charges Feedback (onFail)
+ * - Hotbar Slots + Tooltips + Cooldown/Charges
  */
 
 import { state, setState } from "./state.js";
@@ -17,7 +16,10 @@ import { generateDungeon, isWalkable } from "./game/dungeon.js";
 import { MapCanvas } from "./ui/mapCanvas.js";
 import { startLoop } from "./game/loop.js";
 import { setupControls } from "./input/controls.js";
-import { setupPanels } from "./ui/panels.js";
+
+// WICHTIG: Panels sind jetzt modular in src/ui/panels/panels.js
+import { setupPanels } from "./ui/panels/panels.js";
+
 import { setupHotbar } from "./ui/hotbar.js";
 
 function $(id) {
@@ -71,7 +73,7 @@ map.resizeToParent();
 
 // Init Dungeon
 regenerateDungeon();
-addLog("B3: Hotbar hat jetzt Cooldowns (Ring+Zahl) und Charges (x/y).");
+addLog("M1: Docking wurde modularisiert (docking.js).");
 
 // Controls
 setupControls({
