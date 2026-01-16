@@ -1,417 +1,722 @@
-/**
- * src/ui/hotbar.js
- * -----------------------------------------------------------------------------
- * Hotbar (BG3-ish):
- * - 10 Slots (Keys 1..0)
- * - CSS-only Icons
- * - Tooltips:
- *    - Desktop (mouse): Tooltip als Overlay nahe Slot
- *    - Mobile (touch): Tooltip als Info-Block oberhalb der Slots (verdeckt nichts)
- * - Cooldown Overlay (Ring + Zahl)
- * - Charges Badge (x/y)
- *
- * Daten kommen aus: ./hotbarData.js
- */
+/* ============================================================================
+   Shadowridge – UI (Hotbar Layout Toggle + Tooltip Docking)
+   ========================================================================== */
 
-import { buildDemoHotbarSlots } from "./hotbarData.js";
+:root{
+  --bg0:#0f0e0c;
+  --bg1:#171512;
 
-function isTouchLikely() {
-  return window.matchMedia("(pointer: coarse)").matches;
+  --panel:rgba(22,18,14,.86);
+  --panel2:rgba(12,10,8,.70);
+
+  --ink:#f2ead7;
+  --muted:#b9b0a0;
+
+  --gold:#d2a24a;
+  --gold2:#b88a37;
+  --accent:#c84b4b;
+
+  --line:rgba(210,162,74,.25);
+  --line2:rgba(255,255,255,.10);
+
+  --shadow:rgba(0,0,0,.35);
+  --radius:16px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+*{ box-sizing:border-box; }
+html,body{ height:100%; margin:0; }
+
+body{
+  background:
+    radial-gradient(1200px 700px at 50% 20%, #1f1a14 0%, var(--bg0) 60%),
+    radial-gradient(900px 500px at 20% 80%, rgba(210,162,74,.06), transparent 60%),
+    radial-gradient(900px 500px at 80% 80%, rgba(200,75,75,.05), transparent 60%);
+  color:var(--ink);
+  font-family: "MedievalSharp", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  overflow:hidden;
 }
 
-function positionTooltipWithinWrap({ tooltipEl, wrapEl, anchorRect }) {
-  const wrapRect = wrapEl.getBoundingClientRect();
-
-  tooltipEl.style.left = "0px";
-  tooltipEl.style.top = "0px";
-  tooltipEl.classList.add("is-on");
-
-  const tipRect = tooltipEl.getBoundingClientRect();
-
-  let x = (anchorRect.left - wrapRect.left) + (anchorRect.width * 0.5) - (tipRect.width * 0.5);
-  let y = (anchorRect.top - wrapRect.top) - tipRect.height - 10;
-
-  x = Math.max(8, Math.min(x, wrapRect.width - tipRect.width - 8));
-  y = Math.max(8, Math.min(y, wrapRect.height - tipRect.height - 8));
-
-  tooltipEl.style.left = `${Math.round(x)}px`;
-  tooltipEl.style.top = `${Math.round(y)}px`;
+.app{
+  height:100%;
+  display:grid;
+  grid-template-rows: auto 1fr;
+  gap:10px;
+  padding:
+    calc(10px + var(--safe-top))
+    calc(10px + var(--safe-right))
+    calc(10px + var(--safe-bottom))
+    calc(10px + var(--safe-left));
 }
 
-function createSlotButton(slot) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "hotbarSlot";
-  btn.setAttribute("role", "button");
-  btn.dataset.icon = slot.icon || "sword";
-  btn.dataset.slotId = slot.id;
-  btn.setAttribute("aria-label", `${slot.name} (Taste ${slot.key})`);
-
-  const key = document.createElement("div");
-  key.className = "hotbarKey";
-  key.textContent = slot.key;
-
-  const icon = document.createElement("div");
-  icon.className = "hotbarIcon";
-  icon.setAttribute("aria-hidden", "true");
-
-  const overlay = document.createElement("div");
-  overlay.className = "hotbarOverlay";
-  overlay.setAttribute("aria-hidden", "true");
-
-  const shade = document.createElement("div");
-  shade.className = "hotbarCooldownShade";
-
-  const ring = document.createElement("div");
-  ring.className = "hotbarCooldownRing";
-
-  const inner = document.createElement("div");
-  inner.className = "hotbarCooldownInner";
-
-  const cdText = document.createElement("div");
-  cdText.className = "hotbarCooldownText";
-  cdText.textContent = "";
-
-  overlay.appendChild(shade);
-  overlay.appendChild(ring);
-  overlay.appendChild(inner);
-  overlay.appendChild(cdText);
-
-  const charges = document.createElement("div");
-  charges.className = "hotbarCharges";
-  charges.textContent = "";
-
-  btn.appendChild(key);
-  btn.appendChild(icon);
-  btn.appendChild(overlay);
-  btn.appendChild(charges);
-
-  btn._sr = { overlay, ring, cdText, charges };
-
-  return btn;
+/* --- Header -------------------------------------------------------------- */
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 14px;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background: linear-gradient(180deg, rgba(30,24,18,.90), rgba(14,12,10,.88));
+  box-shadow: 0 12px 30px var(--shadow);
+  position:relative;
+  overflow:hidden;
+}
+.topbar::before{
+  content:"";
+  position:absolute;
+  inset:-40px;
+  background: repeating-linear-gradient(35deg, rgba(255,255,255,.03) 0 1px, transparent 1px 10px);
+  opacity:.20;
+  pointer-events:none;
 }
 
-function nowMs() {
-  return Date.now();
+.title__main{
+  font-family:"Cinzel", serif;
+  font-weight:700;
+  font-size:20px;
+  letter-spacing:.6px;
+  text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+.title__sub{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:2px;
 }
 
-export function setupHotbar({
-  slotsEl,
-  tooltipEl,
-  tooltipTitleEl,
-  tooltipDescEl,
-  tooltipMetaEl,
-  onActivate,
-  onFail,
-}) {
-  if (!slotsEl || !tooltipEl) return () => {};
+.topbar__hint{
+  color:var(--muted);
+  font-size:12px;
+  display:flex;
+  gap:6px;
+  align-items:center;
+}
+.kbd{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size:11px;
+  padding:2px 6px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.25);
+  color: var(--ink);
+}
 
-  const wrapEl = slotsEl.closest(".hotbarWrap") || slotsEl.parentElement;
+/* --- Stage / Map --------------------------------------------------------- */
+.stage{ min-height:0; }
+.stage__map{
+  min-height:0;
+  display:grid;
+  grid-template-rows: 1fr auto auto;
+  gap:10px;
+}
 
-  // ✅ Daten kommen jetzt aus eigener Datei (modular)
-  const slots = buildDemoHotbarSlots();
+.canvasWrap{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.45)),
+    radial-gradient(900px 500px at 50% 30%, rgba(210,162,74,.08), transparent 60%);
+  box-shadow: 0 12px 30px var(--shadow);
+  overflow:hidden;
+  min-height:0;
+}
 
-  let selectedIndex = 0;
-  let tooltipOpen = false;
+#map{
+  width:100%;
+  height:100%;
+  display:block;
+}
 
-  // Render Slots
-  slotsEl.innerHTML = "";
-  const slotButtons = slots.map((slot) => {
-    const btn = createSlotButton(slot);
-    slotsEl.appendChild(btn);
-    return btn;
-  });
+.statusbar{
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background: rgba(0,0,0,.25);
+  padding:8px 10px;
+}
+.statusbar__text{
+  color:var(--muted);
+  font-size:12px;
+}
 
-  function setSelected(index) {
-    selectedIndex = Math.max(0, Math.min(index, slotButtons.length - 1));
-    for (let i = 0; i < slotButtons.length; i++) {
-      slotButtons[i].classList.toggle("is-selected", i === selectedIndex);
-    }
+/* --- HUD Overlay Container ---------------------------------------------- */
+.hud{
+  pointer-events:none;
+}
+
+/* --- Panels -------------------------------------------------------------- */
+.hudPanel{
+  pointer-events:auto;
+  border-radius:18px;
+  overflow:hidden;
+  backdrop-filter: blur(3px);
+
+  background: linear-gradient(180deg, rgba(32,26,20,.92), rgba(12,10,8,.80));
+  border:1px solid rgba(210,162,74,.30);
+  box-shadow:
+    0 18px 45px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -1px 0 rgba(0,0,0,.35);
+
+  width: var(--w, 320px);
+  height: var(--h, 240px);
+  position:relative;
+}
+.hudPanel::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.55;
+  background:
+    radial-gradient(12px 12px at 14px 14px, rgba(210,162,74,.55), transparent 70%),
+    radial-gradient(12px 12px at calc(100% - 14px) 14px, rgba(210,162,74,.55), transparent 70%),
+    radial-gradient(12px 12px at 14px calc(100% - 14px), rgba(210,162,74,.35), transparent 70%),
+    radial-gradient(12px 12px at calc(100% - 14px) calc(100% - 14px), rgba(210,162,74,.35), transparent 70%),
+    repeating-linear-gradient(35deg, rgba(255,255,255,.03) 0 1px, transparent 1px 10px);
+}
+
+.hudPanel__titlebar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;
+  border-bottom:1px solid rgba(210,162,74,.18);
+  cursor: grab;
+  user-select:none;
+  background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,0));
+}
+
+/* Kompakter Titlebar (Hotbar) */
+.hudPanel__titlebar--compact{
+  padding:6px 10px;
+}
+
+.hudPanel__title{
+  font-family:"Cinzel", serif;
+  font-weight:700;
+  letter-spacing:.3px;
+  text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+.logTitle{
+  font-family:"Uncial Antiqua", serif;
+  font-weight:400;
+  letter-spacing:.5px;
+}
+
+.hudPanel__actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.hudBtn{
+  width:30px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.25);
+  color: var(--ink);
+  border-radius:10px;
+  cursor:pointer;
+  font-family: inherit;
+  line-height:1;
+}
+.hudBtn:hover{
+  border-color: rgba(210,162,74,.40);
+  background: rgba(210,162,74,.12);
+}
+
+.hudPanel__body{
+  padding:10px 12px;
+  height: calc(100% - 44px);
+  overflow:auto;
+  color: var(--muted);
+  font-size:12px;
+}
+
+/* Hotbar hat kompaktere Titlebar -> Body-Höhe anpassen */
+.hudPanel--hotbar .hudPanel__body{
+  height: calc(100% - 36px);
+}
+
+.logBody{ font-size:12px; }
+.logLine{
+  padding:2px 0;
+  border-bottom:1px dashed rgba(255,255,255,.08);
+}
+
+.hudPanel__resize{
+  position:absolute;
+  right:6px;
+  bottom:6px;
+  width:18px;
+  height:18px;
+  border-right:2px solid rgba(242,234,215,.55);
+  border-bottom:2px solid rgba(242,234,215,.55);
+  border-radius:3px;
+  cursor:nwse-resize;
+  opacity:.75;
+}
+.hudPanel__resize:hover{ opacity:1; }
+
+.hudPanel.is-active{
+  border-color: rgba(210,162,74,.55);
+  box-shadow:
+    0 22px 60px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.45);
+}
+
+/* Desktop: Collapse = Mini-Leiste */
+@media (min-width: 981px){
+  .hudPanel.is-collapsed{
+    height: 46px !important;
+    min-height: 46px;
+  }
+  .hudPanel.is-collapsed .hudPanel__body{ display:none; }
+  .hudPanel.is-collapsed .hudPanel__resize{ display:none; }
+  .hudPanel.is-collapsed .hudPanel__titlebar{ border-bottom:none; }
+}
+
+/* --- Docking Guides ------------------------------------------------------ */
+.dockGuides{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index: 8000;
+}
+.dockGuideLine{
+  position:absolute;
+  opacity:0;
+  transform: translateZ(0);
+  transition: opacity .06s linear;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.35));
+}
+.dockGuideLine.is-on{ opacity:1; }
+.dockGuideLine--v{
+  top:0; bottom:0;
+  width:2px;
+  background: linear-gradient(180deg, transparent, rgba(210,162,74,.85), transparent);
+}
+.dockGuideLine--h{
+  left:0; right:0;
+  height:2px;
+  background: linear-gradient(90deg, transparent, rgba(210,162,74,.85), transparent);
+}
+
+/* --- HOTBAR -------------------------------------------------------------- */
+.hotbarBody{
+  position:relative;
+  overflow:visible; /* Tooltip kann “drüber” ohne abgeschnitten zu werden (mobile) */
+}
+
+.hotbarWrap{
+  position:relative;
+  padding:6px 6px 8px 6px;
+  border:1px solid rgba(210,162,74,.18);
+  border-radius:14px;
+  background: rgba(0,0,0,.18);
+}
+
+/* Layout-Modi */
+.hotbarSlots{
+  display:grid;
+  gap:8px;
+  align-items:stretch;
+}
+.hotbarSlots.is-row10{
+  grid-template-columns: repeat(10, 1fr);
+}
+.hotbarSlots.is-grid2x5{
+  grid-template-columns: repeat(5, 1fr);
+}
+
+/* Slot ist immer quadratisch */
+.hotbarSlot{
+  position:relative;
+  aspect-ratio: 1 / 1;
+  width:100%;
+  border-radius:14px;
+  border:1px solid rgba(210,162,74,.28);
+  background:
+    radial-gradient(55px 40px at 35% 30%, rgba(255,255,255,.06), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.45));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -1px 0 rgba(0,0,0,.45);
+  cursor:pointer;
+  user-select:none;
+  outline:none;
+  touch-action: manipulation;
+}
+
+.hotbarSlot:hover{ border-color: rgba(210,162,74,.48); }
+
+.hotbarSlot.is-selected{
+  border-color: rgba(210,162,74,.70);
+  box-shadow:
+    0 8px 22px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.55);
+}
+
+.hotbarSlot.is-disabled{
+  opacity: .65;
+  filter: saturate(.85);
+}
+.hotbarSlot.is-disabled:hover{
+  border-color: rgba(210,162,74,.28);
+  cursor: not-allowed;
+}
+
+/* Labels skalieren mit Slotgröße */
+.hotbarKey{
+  position:absolute;
+  left:7%;
+  top:7%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(9px, 1.2vw, 11px);
+  color: rgba(242,234,215,.80);
+  background: rgba(0,0,0,.28);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+  padding:1px 6px;
+}
+
+.hotbarIcon{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+}
+.hotbarIcon::before{
+  content:"";
+  width:45%;
+  height:45%;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(210,162,74,.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* Icon Varianten */
+.hotbarSlot[data-icon="sword"] .hotbarIcon::before{
+  background:
+    linear-gradient(45deg, rgba(255,255,255,.10), rgba(0,0,0,.35)),
+    linear-gradient(180deg, rgba(210,162,74,.35), rgba(210,162,74,.08));
+  border-color: rgba(210,162,74,.35);
+}
+.hotbarSlot[data-icon="shield"] .hotbarIcon::before{
+  background:
+    radial-gradient(14px 14px at 50% 35%, rgba(255,255,255,.10), transparent 65%),
+    linear-gradient(180deg, rgba(140,170,190,.22), rgba(0,0,0,.45));
+  border-color: rgba(140,170,190,.35);
+}
+.hotbarSlot[data-icon="potion"] .hotbarIcon::before{
+  background:
+    radial-gradient(12px 12px at 50% 35%, rgba(255,255,255,.14), transparent 65%),
+    linear-gradient(180deg, rgba(200,75,75,.26), rgba(0,0,0,.45));
+  border-color: rgba(200,75,75,.35);
+}
+.hotbarSlot[data-icon="spell"] .hotbarIcon::before{
+  background:
+    radial-gradient(18px 18px at 50% 45%, rgba(120,160,255,.18), transparent 70%),
+    linear-gradient(180deg, rgba(90,120,255,.16), rgba(0,0,0,.45));
+  border-color: rgba(90,120,255,.35);
+}
+.hotbarSlot[data-icon="boot"] .hotbarIcon::before{
+  background:
+    radial-gradient(18px 18px at 50% 45%, rgba(210,162,74,.14), transparent 70%),
+    linear-gradient(180deg, rgba(210,162,74,.10), rgba(0,0,0,.45));
+  border-color: rgba(210,162,74,.28);
+}
+.hotbarSlot[data-icon="lantern"] .hotbarIcon::before{
+  background:
+    radial-gradient(12px 12px at 50% 40%, rgba(255,210,120,.22), transparent 70%),
+    linear-gradient(180deg, rgba(255,210,120,.12), rgba(0,0,0,.45));
+  border-color: rgba(255,210,120,.32);
+}
+
+/* Cooldown overlay */
+.hotbarOverlay{
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  pointer-events:none;
+  display:none;
+}
+.hotbarCooldownShade{
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  background: rgba(0,0,0,.42);
+}
+.hotbarCooldownRing{
+  position:absolute;
+  inset:10%;
+  border-radius:12px;
+  background:
+    conic-gradient(
+      rgba(210,162,74,.88) 0deg var(--cdAngle, 0deg),
+      rgba(0,0,0,0) var(--cdAngle, 0deg) 360deg
+    );
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.55));
+}
+.hotbarCooldownInner{
+  position:absolute;
+  inset:14%;
+  border-radius:10px;
+  background: rgba(0,0,0,.38);
+}
+.hotbarCooldownText{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight:700;
+  font-size: clamp(12px, 1.4vw, 16px);
+  color: rgba(242,234,215,.92);
+  text-shadow: 0 2px 0 rgba(0,0,0,.55);
+}
+.hotbarSlot.is-cooldown .hotbarOverlay{ display:block; }
+
+/* Charges badge */
+.hotbarCharges{
+  position:absolute;
+  right:7%;
+  bottom:7%;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display:none;
+  align-items:center;
+  justify-content:center;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(9px, 1.2vw, 11px);
+  color: rgba(242,234,215,.90);
+
+  background: rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.12);
+}
+.hotbarSlot.has-charges .hotbarCharges{ display:flex; }
+
+/* Tooltip (Desktop = fixed, wird in body geportalt) */
+.hotbarTooltip{
+  position:fixed;
+  min-width: 220px;
+  max-width: 340px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(210,162,74,.35);
+  background: linear-gradient(180deg, rgba(20,16,12,.95), rgba(10,8,6,.92));
+  box-shadow: 0 18px 45px rgba(0,0,0,.55);
+  pointer-events:none;
+  opacity:0;
+  transform: translate3d(0, 6px, 0);
+  transition: opacity .08s linear, transform .08s ease;
+  z-index: 9999;
+}
+.hotbarTooltip.is-on{
+  opacity:1;
+  transform: translate3d(0, 0, 0);
+}
+
+.hotbarTooltip__title{
+  font-family:"Cinzel", serif;
+  font-weight:700;
+  color: var(--ink);
+  margin-bottom:4px;
+}
+.hotbarTooltip__desc{
+  color: var(--muted);
+  font-size:12px;
+  margin-bottom:8px;
+}
+.hotbarTooltip__meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.hotbarPill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.22);
+  color: rgba(242,234,215,.82);
+  font-size:11px;
+}
+.hotbarPill strong{
+  color: rgba(242,234,215,.92);
+  font-weight:700;
+}
+.hotbarPill--bad{
+  border-color: rgba(200,75,75,.35);
+  background: rgba(200,75,75,.10);
+}
+.hotbarPill--cd{
+  border-color: rgba(210,162,74,.30);
+  background: rgba(210,162,74,.10);
+}
+.hotbarPill--charges{
+  border-color: rgba(140,170,190,.30);
+  background: rgba(140,170,190,.10);
+}
+
+/* Hint: am Desktop optional ausblenden, spart Platz */
+@media (min-width: 981px){
+  .hotbarHint{ display:none; }
+}
+
+/* --- Desktop Overlay Mode ---------------------------------------------- */
+@media (min-width: 981px){
+  .canvasWrap{
+    height: 100%;
+    min-height: 540px;
   }
 
-  function slotIsOnCooldown(slot) {
-    return slot.cooldownEndMs > nowMs();
+  .hud{
+    position:absolute;
+    left:0; top:0; right:0; bottom:0;
+    pointer-events:none;
   }
 
-  function slotHasCharges(slot) {
-    return slot.maxCharges > 0;
+  .hudPanel{
+    position:absolute;
+    transform: translate3d(var(--x, 18px), var(--y, 18px), 0);
   }
 
-  function slotIsOutOfCharges(slot) {
-    return slotHasCharges(slot) && slot.charges <= 0;
+  .mobileTabs{ display:none; }
+  .mobileOverlay{ display:none; }
+}
+
+/* --- Mobile Mode -------------------------------------------------------- */
+@media (max-width: 980px){
+  body{ overflow:auto; }
+  .app{ overflow:auto; height:auto; }
+
+  .canvasWrap{ height: 58vh; }
+
+  .hud{
+    position:absolute;
+    left:0; top:0; right:0; bottom:0;
+    pointer-events:auto;
+    z-index: 9050;
   }
 
-  function slotIsUsable(slot) {
-    if (slotIsOnCooldown(slot)) return false;
-    if (slotIsOutOfCharges(slot)) return false;
-    return true;
+  .hudPanel{ display:none; }
+
+  .mobileTabs{
+    display:flex;
+    gap:10px;
+    justify-content:space-between;
+
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background: rgba(0,0,0,.25);
+    padding:10px;
+    padding-bottom: calc(10px + var(--safe-bottom));
   }
 
-  function buildMetaPills(slot) {
-    const pills = [];
-
-    pills.push({ text: `Taste ${slot.key}`, cls: "" });
-
-    if (slot.baseMeta) pills.push({ text: slot.baseMeta, cls: "" });
-
-    if (slotHasCharges(slot)) {
-      pills.push({ text: `Charges ${slot.charges}/${slot.maxCharges}`, cls: "hotbarPill--charges" });
-    }
-
-    if (slot.cooldownSec > 0) {
-      if (slotIsOnCooldown(slot)) {
-        const rem = Math.max(0, slot.cooldownEndMs - nowMs()) / 1000;
-        pills.push({ text: `Cooldown ${Math.ceil(rem)}s`, cls: "hotbarPill--cd" });
-      } else {
-        pills.push({ text: `Cooldown ${slot.cooldownSec}s`, cls: "hotbarPill--cd" });
-      }
-    }
-
-    if (!slotIsUsable(slot)) {
-      if (slotIsOnCooldown(slot)) pills.push({ text: "⛔ On Cooldown", cls: "hotbarPill--bad" });
-      if (slotIsOutOfCharges(slot)) pills.push({ text: "⛔ Keine Charges", cls: "hotbarPill--bad" });
-    }
-
-    return pills;
+  .mobileTabBtn{
+    flex:1;
+    border:1px solid rgba(255,255,255,.14);
+    background: rgba(0,0,0,.25);
+    color: var(--ink);
+    border-radius:14px;
+    padding:10px 10px;
+    cursor:pointer;
+    font-family:"Cinzel", serif;
+    font-weight:700;
+    letter-spacing:.2px;
+    font-size:12px;
+  }
+  .mobileTabBtn:hover{
+    border-color: rgba(210,162,74,.35);
+    background: rgba(210,162,74,.12);
   }
 
-  function renderMetaPills(slot) {
-    if (!tooltipMetaEl) return;
-    const pills = buildMetaPills(slot);
+  .mobileOverlay{
+    position:fixed;
+    inset:0;
+    display:none;
+    background: rgba(0,0,0,.55);
+    z-index: 9000;
+  }
+  .mobileOverlay.is-open{ display:block; }
 
-    tooltipMetaEl.innerHTML = pills.map(p => {
-      const cls = `hotbarPill ${p.cls || ""}`.trim();
-      return `<span class="${cls}"><strong>•</strong> ${escapeHtml(p.text)}</span>`;
-    }).join("");
+  .mobileClose{
+    position:absolute;
+    top: calc(12px + var(--safe-top));
+    right: calc(12px + var(--safe-right));
+    border:1px solid rgba(255,255,255,.18);
+    background: rgba(0,0,0,.35);
+    color: var(--ink);
+    border-radius:12px;
+    padding:10px 12px;
+    font-size:14px;
+    cursor:pointer;
   }
 
-  function showTooltipForIndex(index, anchorEl) {
-    const slot = slots[index];
-    if (!slot) return;
-
-    if (tooltipTitleEl) tooltipTitleEl.textContent = slot.name;
-    if (tooltipDescEl) tooltipDescEl.textContent = slot.desc;
-    renderMetaPills(slot);
-
-    tooltipEl.setAttribute("aria-hidden", "false");
-    tooltipEl.classList.add("is-on");
-    tooltipOpen = true;
-
-    // Desktop: positionieren nahe Slot
-    // Mobile: "inline" (CSS), also keine absolute Position
-    if (!isTouchLikely() && wrapEl && anchorEl) {
-      const r = anchorEl.getBoundingClientRect();
-      positionTooltipWithinWrap({ tooltipEl, wrapEl, anchorRect: r });
-    } else {
-      tooltipEl.style.left = "";
-      tooltipEl.style.top = "";
-    }
+  .hudPanel.is-mobile-open{
+    display:block;
+    position:fixed;
+    left: calc(12px + var(--safe-left));
+    right: calc(12px + var(--safe-right));
+    top: calc(56px + var(--safe-top));
+    bottom: calc(12px + var(--safe-bottom));
+    width:auto !important;
+    height:auto !important;
+    transform:none !important;
+    z-index: 9100;
+    pointer-events:auto;
+    touch-action: manipulation;
   }
 
-  function hideTooltip() {
-    tooltipEl.classList.remove("is-on");
-    tooltipEl.setAttribute("aria-hidden", "true");
-    tooltipOpen = false;
+  .hudPanel.is-mobile-open .hudPanel__resize{ display:none; }
+  .hudPanel.is-mobile-open .hudPanel__titlebar{ cursor: default; }
+
+  .dockGuides{ display:none; }
+}
+
+.muted{ color: var(--muted); }
+
+/* Touch/Coarse Pointer: Tooltip als Inline-Info (nicht fixed) */
+@media (pointer: coarse){
+  .hotbarWrap{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
   }
 
-  function updateSlotVisual(index) {
-    const slot = slots[index];
-    const btn = slotButtons[index];
-    if (!slot || !btn) return;
-
-    const hasC = slotHasCharges(slot);
-    btn.classList.toggle("has-charges", hasC);
-    if (hasC) btn._sr.charges.textContent = `${slot.charges}/${slot.maxCharges}`;
-    else btn._sr.charges.textContent = "";
-
-    const onCd = slotIsOnCooldown(slot);
-    btn.classList.toggle("is-cooldown", onCd);
-    btn.classList.toggle("is-disabled", !slotIsUsable(slot));
-
-    if (onCd) {
-      const remMs = Math.max(0, slot.cooldownEndMs - nowMs());
-      const rem = remMs / 1000;
-      btn._sr.cdText.textContent = String(Math.ceil(rem));
-
-      const dur = Math.max(0.001, slot.lastCooldownDurSec || slot.cooldownSec || 1);
-      const progress = Math.max(0, Math.min(1, rem / dur)); // 1..0
-      const angle = Math.round(360 * progress);
-      btn.style.setProperty("--cdAngle", `${angle}deg`);
-    } else {
-      btn._sr.cdText.textContent = "";
-      btn.style.setProperty("--cdAngle", `0deg`);
-    }
+  .hotbarTooltip{
+    position:relative;
+    left:auto !important;
+    top:auto !important;
+    width:100%;
+    max-width:none;
+    pointer-events:auto;
+    transform:none;
+    transition: opacity .08s linear;
+    margin: 2px 2px 0 2px;
   }
 
-  function updateAllVisuals() {
-    for (let i = 0; i < slots.length; i++) updateSlotVisual(i);
+  .hotbarSlots{ order: 2; }
+  .hotbarTooltip{ order: 1; }
 
-    if (tooltipOpen) {
-      const idx = selectedIndex;
-      const btn = slotButtons[idx];
-      if (btn) showTooltipForIndex(idx, btn);
-    }
+  .hotbarTooltip:not(.is-on){
+    display:none;
   }
-
-  let tickTimer = null;
-
-  function anyCooldownActive() {
-    return slots.some(s => slotIsOnCooldown(s));
-  }
-
-  function ensureTicking() {
-    if (tickTimer) return;
-    tickTimer = window.setInterval(() => {
-      const t = nowMs();
-
-      for (const s of slots) {
-        if (s.cooldownEndMs > 0 && s.cooldownEndMs <= t) {
-          s.cooldownEndMs = 0;
-
-          // Demo: am Cooldown-Ende 1 Charge zurück
-          if (s.rechargeOnCooldownEnd && s.maxCharges > 0) {
-            s.charges = Math.min(s.maxCharges, s.charges + 1);
-          }
-        }
-      }
-
-      updateAllVisuals();
-
-      if (!anyCooldownActive()) {
-        window.clearInterval(tickTimer);
-        tickTimer = null;
-      }
-    }, 80);
-  }
-
-  function tryActivate(index) {
-    const slot = slots[index];
-    if (!slot) return false;
-
-    if (!slotIsUsable(slot)) {
-      if (slotIsOnCooldown(slot)) onFail?.(`⛔ ${slot.name}: noch auf Cooldown.`);
-      else if (slotIsOutOfCharges(slot)) onFail?.(`⛔ ${slot.name}: keine Charges mehr.`);
-      else onFail?.(`⛔ ${slot.name}: nicht verfügbar.`);
-      return false;
-    }
-
-    if (slotHasCharges(slot)) slot.charges = Math.max(0, slot.charges - 1);
-
-    if (slot.cooldownSec > 0) {
-      slot.lastCooldownDurSec = slot.cooldownSec;
-      slot.cooldownEndMs = nowMs() + Math.round(slot.cooldownSec * 1000);
-      ensureTicking();
-    }
-
-    onActivate?.(slot);
-    updateAllVisuals();
-    return true;
-  }
-
-  // Desktop Hover
-  function onPointerEnter(e) {
-    const btn = e.currentTarget;
-    const idx = slotButtons.indexOf(btn);
-    if (idx < 0) return;
-    setSelected(idx);
-    showTooltipForIndex(idx, btn);
-  }
-
-  function onPointerLeave() {
-    if (!isTouchLikely()) hideTooltip();
-  }
-
-  // Click / Tap
-  function onClick(e) {
-    const btn = e.currentTarget;
-    const idx = slotButtons.indexOf(btn);
-    if (idx < 0) return;
-
-    if (isTouchLikely()) {
-      // 1. Tap -> Tooltip
-      if (!tooltipOpen || selectedIndex !== idx) {
-        setSelected(idx);
-        showTooltipForIndex(idx, btn);
-        return;
-      }
-
-      // 2. Tap -> Activate
-      const ok = tryActivate(idx);
-      if (ok) hideTooltip();
-      else showTooltipForIndex(idx, btn);
-      return;
-    }
-
-    // Desktop: sofort aktivieren
-    tryActivate(idx);
-  }
-
-  // Outside closes tooltip (Mobile)
-  function onDocPointerDown(e) {
-    if (!isTouchLikely()) return;
-    if (!tooltipOpen) return;
-
-    const t = e.target;
-    const insideHotbar = wrapEl && wrapEl.contains(t);
-    if (!insideHotbar) hideTooltip();
-  }
-
-  // Keyboard 1..0
-  function onKeyDown(e) {
-    const tag = document.activeElement?.tagName?.toLowerCase();
-    if (tag === "input" || tag === "textarea") return;
-
-    const k = e.key;
-    let idx = -1;
-    if (k >= "1" && k <= "9") idx = Number(k) - 1;
-    if (k === "0") idx = 9;
-
-    if (idx >= 0) {
-      e.preventDefault();
-      setSelected(idx);
-
-      const ok = tryActivate(idx);
-
-      if (!isTouchLikely()) {
-        const b = slotButtons[idx];
-        if (b) showTooltipForIndex(idx, b);
-        window.setTimeout(() => hideTooltip(), ok ? 700 : 1100);
-      }
-    }
-  }
-
-  // Wire
-  slotButtons.forEach((btn) => {
-    btn.addEventListener("pointerenter", onPointerEnter);
-    btn.addEventListener("pointerleave", onPointerLeave);
-    btn.addEventListener("click", onClick);
-  });
-
-  document.addEventListener("pointerdown", onDocPointerDown);
-  window.addEventListener("keydown", onKeyDown);
-
-  setSelected(0);
-  updateAllVisuals();
-
-  return () => {
-    slotButtons.forEach((btn) => {
-      btn.removeEventListener("pointerenter", onPointerEnter);
-      btn.removeEventListener("pointerleave", onPointerLeave);
-      btn.removeEventListener("click", onClick);
-    });
-    document.removeEventListener("pointerdown", onDocPointerDown);
-    window.removeEventListener("keydown", onKeyDown);
-
-    if (tickTimer) window.clearInterval(tickTimer);
-    tickTimer = null;
-  };
 }
