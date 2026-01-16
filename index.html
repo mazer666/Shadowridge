@@ -32,7 +32,6 @@
         <div class="canvasWrap" id="canvasWrap">
           <canvas id="map" aria-label="Dungeon Map"></canvas>
 
-          <!-- Desktop HUD Overlay Panels -->
           <div id="hud" class="hud" aria-label="HUD Panels">
             <!-- PARTY -->
             <section class="hudPanel" data-panel-id="party">
@@ -75,35 +74,36 @@
                 </div>
               </div>
               <div class="hudPanel__body logBody" id="log">
-                <div class="logLine">Willkommen! (B2 Hotbar: Slots + Tooltips)</div>
+                <div class="logLine">Hotbar: Layout Toggle + Tooltip Docking</div>
               </div>
               <div class="hudPanel__resize" data-resize-handle title="Größe ändern"></div>
             </section>
 
-            <!-- HOTBAR -->
-            <section class="hudPanel" data-panel-id="hotbar">
-              <div class="hudPanel__titlebar" data-drag-handle>
+            <!-- HOTBAR (kompakter + Layout Toggle) -->
+            <section class="hudPanel hudPanel--hotbar" data-panel-id="hotbar">
+              <div class="hudPanel__titlebar hudPanel__titlebar--compact" data-drag-handle>
                 <div class="hudPanel__title">Hotbar</div>
                 <div class="hudPanel__actions">
+                  <!-- NEU: Layout Umschalten -->
+                  <button class="hudBtn" id="hotbarLayoutBtn" type="button" title="Layout umschalten (1×10 / 2×5)" aria-label="Hotbar Layout umschalten">≡</button>
                   <button class="hudBtn" type="button" data-action="collapse" title="Ein-/Ausklappen" aria-expanded="true">▾</button>
                 </div>
               </div>
 
-              <!-- NEU: echte Hotbar Slots -->
               <div class="hudPanel__body hotbarBody">
                 <div class="hotbarWrap" aria-label="Hotbar Slots">
                   <div id="hotbarSlots" class="hotbarSlots" role="toolbar" aria-label="Actions (1 bis 0)"></div>
 
-                  <!-- Tooltip (wird per JS befüllt & positioniert) -->
+                  <!-- Tooltip (wird per JS bei Desktop in den body "geportalt") -->
                   <div id="hotbarTooltip" class="hotbarTooltip" role="tooltip" aria-hidden="true">
                     <div class="hotbarTooltip__title" id="hotbarTooltipTitle">—</div>
                     <div class="hotbarTooltip__desc" id="hotbarTooltipDesc">—</div>
-                    <div class="hotbarTooltip__meta" id="hotbarTooltipMeta">—</div>
+                    <div class="hotbarTooltip__meta" id="hotbarTooltipMeta"></div>
                   </div>
                 </div>
 
                 <div class="hotbarHint muted">
-                  Tipp: <span class="kbd">1–0</span> auslösen • Hover für Tooltip • Tap am Handy zeigt Tooltip
+                  Tipp: <span class="kbd">1–0</span> auslösen • Layout: Button <span class="kbd">≡</span>
                 </div>
               </div>
 
